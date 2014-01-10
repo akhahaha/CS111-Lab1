@@ -29,7 +29,8 @@ Part A
 		- handle subshells ()
 	3. Create parse tree out of tokens
 		- left-associative, see operator priorities above
-		- command struct is essentially a node? simple commands (words only) are the leafs
+		- command struct is essentially a node
+		- simple commands (words only) are the leafs
 		- use the double stack method?
 			- pop operator if new is <= priority
 			- push operator if new is > priority
@@ -39,3 +40,4 @@ Part A
 		- update README
 		- Use "make dist" to create .tar.gz
 	7. See if we want to do design problems for 1a?
+
