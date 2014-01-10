@@ -1,4 +1,41 @@
-This is a skeleton for CS 111 Lab 1.
+-------------------------------------------------------------------------------
+UCLA CS 111 Lab 1. "Time Travel Shell""
+Professor Peter Reiher
+Winter 2014
 
-Replace this README file with notes on your implementation.
-Mentions any special features or limitations.
+FILE:	README
+
+AUTHOR(s):
+Alan Kha			904030522	akhahaha@gmail.com
+Bryaden Anderson				briancanderson@gmail.com
+-------------------------------------------------------------------------------
+
+The Master Plan:
+Part A
+	1. Define command_stream and set up the 'forest'
+	2. Tokenize lines of input
+		- Tokens
+			- Words = combination of letters, numbers, ! % + , - . / : @ ^ _
+			- Operators (in descending priority)
+				1. ( )
+				2. < >
+				3. |
+				4. && ||
+				5. ;
+		- break at \n or #
+		- report error if single &
+		- check for proper number of operands
+		- trim extra whitespace (includes space, tab, newline)
+		- handle subshells ()
+	3. Create parse tree out of tokens
+		- left-associative, see operator priorities above
+		- command struct is essentially a node? simple commands (words only) are the leafs
+		- use the double stack method?
+			- pop operator if new is <= priority
+			- push operator if new is > priority
+	4. Implement the read/printer for -p
+	5. Test timetrash -p
+	6. Submit
+		- update README
+		- Use "make dist" to create .tar.gz
+	7. See if we want to do design problems for 1a?
