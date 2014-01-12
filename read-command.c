@@ -4,6 +4,7 @@
 #include "command-internals.h"
 
 #include <error.h>
+#include <stdio.h>
 
 /* FIXME: You may need to add #include directives, macro definitions,
    static function definitions, etc.  */
@@ -41,12 +42,12 @@ make_command_stream (int (*getbyte) (void *),
       do
       {
         next = getbyte(arg);
-      } while (next != -1 || next != '\n');
+      } while (next != -1 && next != '\n');
     }
 
     // if nextline, process current tokens into a command stream
 
-    printf(next);
+    putchar(next);
   }
 
   error (1, 0, "command reading not yet implemented");
