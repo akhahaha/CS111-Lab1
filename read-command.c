@@ -19,11 +19,11 @@ struct command_stream
 };
 
 // Linked list of tokens
-struct token_stream
-{
-  char* string;
-  token* next;
-};
+// struct token_stream
+// {
+//   char* string;
+//   token* next;
+// };
 
 command_stream_t
 make_command_stream (int (*getbyte) (void *),
@@ -34,14 +34,14 @@ make_command_stream (int (*getbyte) (void *),
      You can also use external functions defined in the GNU C Library.  */
 
   int next = getbyte(arg);
-  while (next != EOF)
+  while (next != -1)
   {
     if (next == '#') // if comment, skip to next line
     {
       do
       {
         next = getbyte(arg);
-      } while (next != EOF || next != '\n');
+      } while (next != -1 || next != '\n');
     }
 
     // if nextline, process current tokens into a command stream
@@ -57,6 +57,7 @@ command_t
 read_command_stream (command_stream_t s)
 {
   /* FIXME: Replace this with your implementation too.  */
+  command_stream_t suse = s;
   error (1, 0, "command reading not yet implemented");
   return 0;
 }
