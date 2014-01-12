@@ -48,6 +48,7 @@ make_command_stream (int (*getbyte) (void *),
     // if nextline, process current tokens into a command stream
 
     putchar(next);
+    next = getbyte(arg);
   }
 
   error (1, 0, "command reading not yet implemented");
