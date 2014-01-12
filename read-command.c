@@ -4,7 +4,7 @@
 #include "command-internals.h"
 
 #include <error.h>
-#include <stdio.h>
+#include <stdio.h> // required to print diagnostic text
 
 /* FIXME: You may need to add #include directives, macro definitions,
    static function definitions, etc.  */
@@ -19,11 +19,11 @@ struct command_stream
   command_t* next;
 };
 
-// Linked list of tokens
+// Linked list of tokens? needs to be typedefed
 // struct token_stream
 // {
 //   char* string;
-//   token* next;
+//   token_stream* next;
 // };
 
 command_stream_t
@@ -47,7 +47,8 @@ make_command_stream (int (*getbyte) (void *),
 
     // if nextline, process current tokens into a command stream
 
-    putchar(next);
+    putchar(next); // DIAGNOSTIC outputs current byte
+
     next = getbyte(arg);
   }
 
@@ -59,7 +60,9 @@ command_t
 read_command_stream (command_stream_t s)
 {
   /* FIXME: Replace this with your implementation too.  */
-  command_stream_t suse = s;
+
+  command_stream_t suse = s; // PLACEHOLDER arguments cannot be unused
+
   error (1, 0, "command reading not yet implemented");
   return 0;
 }
