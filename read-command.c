@@ -14,8 +14,8 @@
 // Linked list of command(tree)s
 struct command_stream
 {
-  command* comm;
-  command* next;
+  command_t* comm;
+  command_t* next;
 };
 
 // Linked list of tokens
@@ -33,7 +33,7 @@ make_command_stream (int (*getbyte) (void *),
      add auxiliary functions and otherwise modify the source code.
      You can also use external functions defined in the GNU C Library.  */
 
-  int next = getbyte(arg)
+  int next = getbyte(arg);
   while (next != EOF)
   {
     if (next == '#') // if comment, skip to next line
@@ -45,7 +45,7 @@ make_command_stream (int (*getbyte) (void *),
     }
 
     // if nextline, process current tokens into a command stream
-    
+
     printf(next);
   }
 
