@@ -33,7 +33,7 @@ struct command_stream
 };
 
 // Linked list of tokens? needs to be typedefed
-typedef struct
+typedef struct token_stream
 {
    char* token;
    token_stream_t* next;
