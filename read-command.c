@@ -1,4 +1,16 @@
-// UCLA CS 111 Lab 1 command reading
+/*-----------------------------------------------------------------------------
+  UCLA CS 111 Lab 1. "Time Travel Shell""
+  Professor Peter Reiher
+  Winter 2014
+
+  FILE:   read-command.c
+  DESCR:  Reads input shell script into commands.
+
+  AUTHOR(s):
+  Alan Kha        904030522 akhahaha@gmail.com
+  Braden Anderson 203744563 bradencanderson@gmail.com
+
+-----------------------------------------------------------------------------*/
 
 #include "command.h"
 #include "command-internals.h"
@@ -20,11 +32,11 @@ struct command_stream
 };
 
 // Linked list of tokens? needs to be typedefed
-// struct token_stream
-// {
-//   char* string;
-//   token_stream* next;
-// };
+typedef struct token_stream
+{
+   char* token;
+   token_stream* next;
+};
 
 command_stream_t
 make_command_stream (int (*getbyte) (void *),
@@ -34,9 +46,15 @@ make_command_stream (int (*getbyte) (void *),
      add auxiliary functions and otherwise modify the source code.
      You can also use external functions defined in the GNU C Library.  */
 
-  int next = getbyte(arg);
-  while (next != -1)
+  size_t count = 0;
+  size_t buffer_size = 1024;
+
+  char* buffer = (char *) checked_malloc(buffer_size);
+
+  do
   {
+    next = getbyte(arg);
+
     if (next == '#') // if comment, skip to next line
     {
       do
@@ -45,11 +63,24 @@ make_command_stream (int (*getbyte) (void *),
       } while (next != -1 && next != '\n');
     }
 
-    // if nextline, process current tokens into a command stream
+    if (next != -1) // if not comment/EOF, load into buffer
+    {
+      buffer[count] = next;
+      count++;
 
-    putchar(next); // DIAGNOSTIC outputs current byte
+      // double buffer when filled
+      if (count == buffer_size)
+      {
+        buffer_size = buffer_size * 2;
+        buffer = checked_grow_alloc (buffer, &buffer_size);
+      }
+    }
+  } while (next != -1);
 
-    next = getbyte(arg);
+  // DIAGNOSTIC print out buffer
+  for (int i = 0; i < count; i++)
+  {
+    putchar(buffer[i]);
   }
 
   error (1, 0, "command reading not yet implemented");
