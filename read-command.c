@@ -86,8 +86,8 @@ make_command_stream (int (*getbyte) (void *),
   for (i = 0; i < count; i++)
   {
     putchar(buffer[i]);
-    printf("...buffer output complete.");
   }
+  printf("...buffer output complete.");
 
   error (1, 0, "command reading not yet implemented");
   return 0;
