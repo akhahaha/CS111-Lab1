@@ -33,25 +33,58 @@ struct command_stream
   command_t* next;
 };
 
-typedef struct token token;
-struct token
+// enumerated list of token types
+enum token_type
 {
-	char* word;
-	token* next;
+	PIPE,
+	AND,
+	OR,
+	WORD,
+	SEMICOLON,
+	SUBSHELL;
+	LEFT,
+	RIGHT
 };
 
-// Linked list of tokens? needs to be typedefed
-// typedef struct token_stream
-// {
-//    char* token;
-//    token_stream_t* next;
-// } token_stream_t;
+typedef struct token token_t;
+struct token
+{
+	enum token_type type;
+	char* content;
+	token_t* next;
+};
+
+typedef struct token_stream token_stream_t;
+struct token_stream
+{
+	token_t* tok;
+	token_stream_t* next;
+}
+
+// creates a new token with specified type and pointer to content string
+token_t* new_token (enum token_type type, char* content)
+{
+	token_t* tok = (token_stream_t*) checked_malloc(sizeof(token_stream_t));
+	
+	if (tok == NULL)
+	{
+		printf("Token creation failed.\n");
+	}
+	else
+	{
+		tok->type = type;
+		tok->content = content;
+		tok->next = NULL;
+	}
+	
+	return tok;
+}
 
 // converts a string representing a complete command into tokens.
-token* tokenize_command(char* cmd_buf)
+token_t* tokenize_command (char* cmd_buf)
 {
-	token* head = NULL;
-	token* curr = head;
+	token_t* head = NULL;
+	token_t* curr = head;
 	
 	char* tkn = strtok(cmd_buf, " ");
 	char* prev_tkn = NULL;
@@ -59,12 +92,12 @@ token* tokenize_command(char* cmd_buf)
 	{
 		if(head == NULL)
 		{
-			head = (token*)checked_malloc(sizeof(token));
+			head = (token_t*)checked_malloc(sizeof(token_t));
 			curr = head;
 		}
 		else
 		{
-			curr->next = (token*)checked_malloc(sizeof(token));
+			curr->next = (token_t*)checked_malloc(sizeof(token_t));
 			curr = curr->next;
 		}
 		curr->word = (char *) checked_malloc(strlen(tkn));;
@@ -84,6 +117,46 @@ token* tokenize_command(char* cmd_buf)
 	}
 	
 	return head;
+}
+
+token_stream* make_token_stream (char* script, size_t script_size)
+{	
+	token_stream_t* curr_stream = (token_stream_t*) checked_malloc(sizeof(token_stream_t));
+	token_stream_t* head_stream = curr_stream;
+
+	token_t* curr_token = (token_t*) checked_malloc(sizeof(token_t));
+	token_t* head_token = NULL;
+
+	size_t index = 0;
+	char c = *script;
+	while (index < script_size)
+	{
+		// check & or &&
+		if (c == '&')
+		{
+			c++; index++;
+			if (c == '&')
+			{
+				curr_token->word = (char*) checked_malloc(2);
+				curr_token->word = "&&";
+				curr_token->next = (token_t*) checked_malloc(sizeof(token_t));
+				curr_token = curr_token->next;
+			}
+			else
+			{
+				curr_token->word = (char*) checked_malloc(|);
+				curr_token->word = "|";
+				curr_token->next = (token_t*) checked_malloc(sizeof(token_t));
+				curr_token = curr_token->next;
+			}
+		}
+		// check | or ||
+		else if (c == )
+		// process < > or ;
+		// process subshells
+		// process whitespace
+		// process simple words
+	}
 }
 
 command_stream_t
@@ -125,34 +198,36 @@ make_command_stream (int (*getbyte) (void *),
 				buffer_size = buffer_size * 2; // TODO check for integer overflows necessary?
 				buffer = checked_grow_alloc (buffer, &buffer_size);
 			}
-
 		}
 		
-		// if current char ends complete command, process buf into commands
-		if(next == -1 || next == '\n' || next == ';')
-		{
-			buffer[count] = '\0';
-			token* head = tokenize_command(buffer);
-			// TODO: add head to forest, somehow.
+		// // if current char ends complete command, process buf into commands
+		// if(next == -1 || next == '\n' || next == ';')
+		// {
+		// 	buffer[count] = '\0';
+		// 	token* head = tokenize_command(buffer);
+		// 	// TODO: add head to forest, somehow.
 			
-			/*
-			 * traverse across command list like so:
-			 *
-			 * while(head != NULL)
-			 *{
-			 *	printf("%s ", head->word);
-			 *	head = head->next;
-			 *}
-			 */
+		// 	/*
+		// 	 * traverse across command list like so:
+		// 	 *
+		// 	 * while(head != NULL) // DIAGNOSTIC
+		// 	 *{
+		// 	 *	printf("%s ", head->word);
+		// 	 *	head = head->next;
+		// 	 *}
+		// 	 */
 
-			// reset buffer
-			count = 0;
-		}
+		// 	// reset buffer
+		// 	count = 0;
+		// }
 
 	} while(next != -1);
+
+	// process buffer into token stream
+	token* head = make_token_stream(buffer);
   
 
-	free(buffer);
+	// free(buffer); // free() not defined
 
 	error (1, 0, "command reading not yet implemented");
 	return 0;
