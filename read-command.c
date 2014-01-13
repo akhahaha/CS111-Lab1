@@ -20,8 +20,6 @@
 #include <stdio.h> // required to print diagnostic text
 #include <string.h> // strings: scanning, finding, etc
 
-#define BUFSIZE 100
-
 /* FIXME: You may need to add #include directives, macro definitions,
    static function definitions, etc.  */
 
@@ -43,11 +41,11 @@ struct token
 };
 
 // Linked list of tokens? needs to be typedefed
-// struct token_stream
+// typedef struct token_stream
 // {
-//   char* string;
-//   token_stream* next;
-// };
+//    char* token;
+//    token_stream_t* next;
+// } token_stream_t;
 
 // converts a string representing a complete command into tokens.
 token* tokenize_command(char* cmd_buf)
@@ -159,9 +157,6 @@ make_command_stream (int (*getbyte) (void *),
 	error (1, 0, "command reading not yet implemented");
 	return 0;
 }
-
-// 
-
 
 command_t
 read_command_stream (command_stream_t s)
