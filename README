@@ -41,3 +41,7 @@ Part A
 		- update README
 		- Use "make dist" to create .tar.gz
 	7. See if we want to do design problems for 1a?
+
+ERROR CODES
+	1 - Unimplemented function
+	2 - Syntax error

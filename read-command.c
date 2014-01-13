@@ -36,6 +36,7 @@ struct command_stream
 // enumerated list of token types
 enum token_type
 {
+	HEAD,	// used as a dummy header
 	PIPE,
 	AND,
 	OR,
@@ -57,7 +58,7 @@ struct token
 typedef struct token_stream token_stream_t;
 struct token_stream
 {
-	token_t* tok;
+	token_t* head;
 	token_stream_t* next;
 }
 
@@ -65,98 +66,131 @@ struct token_stream
 token_t* new_token (enum token_type type, char* content)
 {
 	token_t* tok = (token_stream_t*) checked_malloc(sizeof(token_stream_t));
-	
-	if (tok == NULL)
-	{
-		printf("Token creation failed.\n");
-	}
-	else
-	{
-		tok->type = type;
-		tok->content = content;
-		tok->next = NULL;
-	}
+
+	tok->type = type;
+	tok->content = content;
+	tok->next = NULL;
 	
 	return tok;
 }
 
-// converts a string representing a complete command into tokens.
-token_t* tokenize_command (char* cmd_buf)
-{
-	token_t* head = NULL;
-	token_t* curr = head;
-	
-	char* tkn = strtok(cmd_buf, " ");
-	char* prev_tkn = NULL;
-	while(tkn != NULL)
-	{
-		if(head == NULL)
-		{
-			head = (token_t*)checked_malloc(sizeof(token_t));
-			curr = head;
-		}
-		else
-		{
-			curr->next = (token_t*)checked_malloc(sizeof(token_t));
-			curr = curr->next;
-		}
-		curr->word = (char *) checked_malloc(strlen(tkn));;
-		curr->next = NULL;
-		
-		strcpy(curr->word, tkn);
-		
-		prev_tkn = tkn;
-		tkn = strtok(NULL, " \n");
-		
-		// adjacent whitespace should be skipped over
-		if(tkn != NULL && tkn - prev_tkn <= 1)
-		{
-			prev_tkn = tkn;
-			tkn = strtok(NULL, " ");
-		}
-	}
-	
-	return head;
-}
-
 token_stream* make_token_stream (char* script, size_t script_size)
-{	
-	token_stream_t* curr_stream = (token_stream_t*) checked_malloc(sizeof(token_stream_t));
-	token_stream_t* head_stream = curr_stream;
+{
+	token_t* head_token = new_token(HEAD, NULL);
+	token_t* curr_token = head_token;
 
-	token_t* curr_token = (token_t*) checked_malloc(sizeof(token_t));
-	token_t* head_token = NULL;
+	token_stream_t* head_stream = (token_stream_t*) checked_malloc(sizeof(token_stream_t));
+	token_stream_t* curr_stream = head_stream;
+	curr_stream->head = head_token;
 
 	size_t index = 0;
 	char c = *script;
 	while (index < script_size)
 	{
-		// check & or &&
-		if (c == '&')
+		// input decision tree, TODO: better as switch statement?
+		if (c == '(') // SUBSHELL
+		{
+			int nested = 1;
+
+			size_t count = 0;
+			size_t subshell_size = 64;
+			char* subshell = (char*) checked_malloc(subshell_size);
+
+			// grab contents until subshell is closed
+			while (nested > 0)
+			{
+				c++; index++;
+				if (index == script_size)
+				{
+					error (2, 0, "Syntax error. EOF reached before subshell was closed.")
+					// TODO force exit
+				}
+
+				if (c == '(') // count for nested subshells
+					nested++;
+				else if (c == ')') // close subshell
+					nested--;
+
+				// load into subshell buffer
+				subshell[count] = c;
+				count++;
+
+				// expand subshell buffer if necessary
+				if (count == subshell_size)
+				{
+					subshell_size = subshell_size * 2;
+					subshell = checked_grow_alloc (subshell, &subshell_size);
+				}
+			}
+
+			curr_token-> = new_token(SUBSHELL, subshell);
+			curr_token = curr_token->next;
+		}
+		else if (c == ')') // CLOSE PARENS
+		{
+			error (2, 0, "Syntax error. Close parens found without matching open parens.");
+			// TODO force exit?
+		}
+		else if (c == '<') // LEFT REDIRECT
+		{
+			curr_token-> = new_token(LEFT, NULL);
+			curr_token = curr_token->next;
+		}
+		else if (c == '>') // RIGHT REDIRECT
+		{
+			curr_token-> = new_token(RIGHT, NULL);
+			curr_token = curr_token->next;
+		}
+		else if (c == '&') // check & or &&
 		{
 			c++; index++;
-			if (c == '&')
+			if (c == '&') // AND
 			{
-				curr_token->word = (char*) checked_malloc(2);
-				curr_token->word = "&&";
-				curr_token->next = (token_t*) checked_malloc(sizeof(token_t));
+				curr_token->next = new_token(AND, NULL);
 				curr_token = curr_token->next;
 			}
-			else
+			else // single & is illegal?
 			{
-				curr_token->word = (char*) checked_malloc(|);
-				curr_token->word = "|";
-				curr_token->next = (token_t*) checked_malloc(sizeof(token_t));
+				error (2, 0, "Syntax error. Single '&' not allowed.");
+				// TODO force exit?
+			}
+		}
+		else if (c == '|') // check | or ||, TODO: what about |||||?
+		{
+			c++; index++;
+			if (c== '|') // OR
+			{
+				curr_token-> = new_token(OR, NULL);
+				curr_token = curr_token->next;
+			}
+			else // PIPE
+			{
+				curr_token-> new_token(OR, NULL);
 				curr_token = curr_token->next;
 			}
 		}
-		// check | or ||
-		else if (c == )
-		// process < > or ;
-		// process subshells
-		// process whitespace
-		// process simple words
+		else if (c == ';') // SEMICOLON
+		{
+			curr_token-> = new_token(SEMICOLON, NULL);
+			curr_token = curr_token->next;
+		}
+		else if (c == ' ' || c == '\t') // WHITESPACE
+		{
+			// ignore
+			c++; index++;
+		}
+		else if (c == '\n') // NEWLINE
+		{
+			// start next token_stream
+			curr_stream->next = (token_stream_t*) checked_malloc(sizeof(token_stream_t));
+			curr_stream = curr_stream->next;
+			curr_stream->head = new_token(HEAD, NULL);
+			curr_token = curr_stream->head;
+		}
+		// TODO process simple words
 	}
+
+	return head_stream;
 }
 
 command_stream_t
@@ -190,9 +224,11 @@ make_command_stream (int (*getbyte) (void *),
 
 		if( next != -1 )
 		{
+			// load into buffer
 			buffer[count] = next;
 			count++;
 
+			// expand buffer if necessary
 			if (count == buffer_size)
 			{
 				buffer_size = buffer_size * 2; // TODO check for integer overflows necessary?
