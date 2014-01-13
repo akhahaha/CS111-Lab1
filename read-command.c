@@ -48,7 +48,7 @@ make_command_stream (int (*getbyte) (void *),
      You can also use external functions defined in the GNU C Library.  */
 
   size_t count = 0;
-  size_t buffer_size = 1024;
+  size_t buffer_size = 1024; // initial buffer size is 1MB
 
   char* buffer = (char *) checked_malloc(buffer_size);
 
@@ -74,17 +74,19 @@ make_command_stream (int (*getbyte) (void *),
       // double buffer when filled
       if (count == buffer_size)
       {
-        buffer_size = buffer_size * 2;
+        buffer_size = buffer_size * 2; // TODO check for integer overflows necessary?
         buffer = checked_grow_alloc (buffer, &buffer_size);
       }
     }
   } while (next != -1);
 
   // DIAGNOSTIC print out buffer
+  printf("Printing buffer...");
   size_t i;
   for (i = 0; i < count; i++)
   {
     putchar(buffer[i]);
+    printf("...buffer output complete.");
   }
 
   error (1, 0, "command reading not yet implemented");
