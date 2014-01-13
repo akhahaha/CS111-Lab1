@@ -6,8 +6,9 @@ Winter 2014
 FILE:	README
 
 AUTHOR(s):
-Alan Kha			904030522	akhahaha@gmail.com
-Braden Anderson		203744563	bradencanderson@gmail.com
+Alan Kha		904030522	akhahaha@gmail.com
+Braden Anderson	203744563	bradencanderson@gmail.com
+
 -------------------------------------------------------------------------------
 
 The Master Plan:
@@ -40,4 +41,3 @@ Part A
 		- update README
 		- Use "make dist" to create .tar.gz
 	7. See if we want to do design problems for 1a?
-
