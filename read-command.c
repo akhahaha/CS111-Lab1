@@ -12,6 +12,7 @@
 
 -----------------------------------------------------------------------------*/
 
+#include "alloc.h"
 #include "command.h"
 #include "command-internals.h"
 
@@ -32,11 +33,11 @@ struct command_stream
 };
 
 // Linked list of tokens? needs to be typedefed
-typedef struct token_stream
+typedef struct
 {
    char* token;
    token_stream_t* next;
-};
+} token_stream_t;
 
 command_stream_t
 make_command_stream (int (*getbyte) (void *),
