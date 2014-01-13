@@ -35,7 +35,7 @@ struct command_stream
 typedef struct token_stream
 {
    char* token;
-   token_stream* next;
+   token_stream_t* next;
 };
 
 command_stream_t
@@ -50,6 +50,8 @@ make_command_stream (int (*getbyte) (void *),
   size_t buffer_size = 1024;
 
   char* buffer = (char *) checked_malloc(buffer_size);
+
+  int next;
 
   do
   {
@@ -78,7 +80,8 @@ make_command_stream (int (*getbyte) (void *),
   } while (next != -1);
 
   // DIAGNOSTIC print out buffer
-  for (int i = 0; i < count; i++)
+  size_t i;
+  for (i = 0; i < count; i++)
   {
     putchar(buffer[i]);
   }
