@@ -89,7 +89,7 @@ void output_token_stream (token_stream_t* head_stream)
   int count = 1;
   while (curr_stream != NULL)
   {
-    printf("TOKEN "); putchar(count); putchar ('\n');
+    printf("TOKEN %i\n", count);
 
     token_t* curr = curr_stream->head->next; // next to skip the dummy header
 
@@ -113,6 +113,7 @@ void output_token_stream (token_stream_t* head_stream)
 
     putchar('\n');
     curr_stream = curr_stream->next;
+    count++;
   }
 
   return;
@@ -272,9 +273,6 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
     {
       // start next token_stream only if current stream has been used
       if (curr_token->type != HEAD)
-      {        
-        printf("Making new token stream...\n"); // DIAGNOSTIC
-
         curr_stream->next = checked_malloc(sizeof(token_stream_t));
         curr_stream = curr_stream->next;
         curr_stream->head = new_token(HEAD, NULL);
