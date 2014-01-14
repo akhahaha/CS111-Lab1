@@ -95,14 +95,14 @@ bool output_token_stream (token_stream_t* head_stream)
     {
       switch (curr->type)
       {
-        case SUBSHELL: printf(curr->content+"+"); break;
+        case SUBSHELL: printf(curr->content); putchar('+'); break;
         case LEFT: printf("LEFT+"); break;
         case RIGHT: printf("RIGHT+"); break;
         case AND: printf("AND+"); break;
         case OR: printf("OR+"); break;
         case PIPE: printf("PIPE+"); break;
         case SEMICOLON: printf("SEMICOLON+"); break;
-        case WORD: printf(curr->content+"+"); break;
+        case WORD: printf(curr->content); putchar('+'); break;
         default: break;
       };
 
