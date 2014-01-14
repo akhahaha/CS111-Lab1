@@ -82,8 +82,8 @@ bool is_word (char c)
   return false;
 }
 
-// DIAGNOSTIC FUNCTION Outputs all tokens of a token stream to stdout.
-bool output_token_stream (token_stream_t* head_stream)
+// DIAGNOSTIC FUNCTION: Outputs all tokens of a token stream to stdout
+void output_token_stream (token_stream_t* head_stream)
 {
   token_stream_t* curr_stream = head_stream;
   int count = 1;
@@ -112,9 +112,41 @@ bool output_token_stream (token_stream_t* head_stream)
     }
 
     putchar('\n');
+    curr_stream = curr_stream->next;
   }
 
-  return true;
+  return;
+}
+
+// Deallocates all allocated memory associated with a token stream
+void free_tokens (token_stream_t* head_stream)
+{
+  token_stream_t* curr_stream = head_stream;
+  token_stream_t* prev_stream;
+
+  while (curr_stream != NULL)
+  {
+    printf("TOKEN "); putchar(count); putchar ('\n');
+
+    token_t* curr = curr_stream->head;
+    token_t* prev;
+
+    while (curr != NULL)
+    {
+      if (curr->content != NULL)
+        free(curr->content);
+
+      prev = curr;
+      curr = curr->next;
+      free(prev);
+    }
+
+    prev_stream = curr_stream;
+    curr_stream = curr_stream->next;
+    free(prev_stream);
+  }
+
+  return;
 }
 
 // Converts an input script into a token stream
@@ -192,12 +224,14 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 		}
 		else if (c == '&') // check & or &&
 		{
-			script++; index++; c = *script;
+			script++; index++; c = *script; // check next char
 
 			if (c == '&') // AND
 			{
 				curr_token->next = new_token(AND, NULL);
 				curr_token = curr_token->next;
+
+        script++; index++; c = *script;
 			}
 			else // single & is illegal?
 			{
@@ -207,12 +241,14 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 		}
 		else if (c == '|') // check | or ||, TODO: what about |||||?
 		{
-			script++; index++; c = *script;
+			script++; index++; c = *script; // check next char
 
 			if (c== '|') // OR
 			{
 				curr_token->next = new_token(OR, NULL);
 				curr_token = curr_token->next;
+
+        script++; index++; c = *script;
 			}
 			else // PIPE
 			{
@@ -232,15 +268,18 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 			// do nothing
 			script++; index++; c = *script;
 		}
-		else if (c == '\n') // NEWLINE
-		{
-      printf("Making new token stream...\n"); // DIAGNOSTIC
+    else if (c == '\n') // NEWLINE
+    {
+      // start next token_stream only if current stream has been used
+      if (curr_token->type != HEAD)
+      {        
+        printf("Making new token stream...\n"); // DIAGNOSTIC
 
-			// start next token_stream
-			curr_stream->next = checked_malloc(sizeof(token_stream_t));
-			curr_stream = curr_stream->next;
-			curr_stream->head = new_token(HEAD, NULL);
-			curr_token = curr_stream->head;
+        curr_stream->next = checked_malloc(sizeof(token_stream_t));
+        curr_stream = curr_stream->next;
+        curr_stream->head = new_token(HEAD, NULL);
+        curr_token = curr_stream->head;
+      }
 
       script++; index++; c = *script;
 		}
@@ -320,19 +359,23 @@ make_command_stream (int (*getbyte) (void *),
 		}
 	} while(next != -1);
 
-  printf(buffer);
-  printf("Buffer loaded...\n"); // DIAGNOSTIC
+  printf("Buffer loaded...\n"); // DIAGNOSTIC  
+  printf(buffer); // DIAGNOSTIC
 
 	// process buffer into token stream
 	token_stream_t* head = make_token_stream(buffer, count);
 
-  printf("Token streams created...\n"); // DIAGNOSTIC
-  
+  printf("Token streams created...\n"); // DIAGNOSTIC  
   output_token_stream(head); // DIAGNOSTIC
 
-	free(buffer);
+  // TODO: parse token streams into command streams
+  // subshells should be run through make_token_stream and the command stream converter recursively?
 
-	error(1, 0, "command reading not yet implemented");
+  // TODO: deallocate memory
+	free(buffer);
+  free_tokens(head);
+
+	error(1, 0, "command reading not yet implemented"); // TODO: delete this when finished
 	return 0;
 }
 
