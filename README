@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
-UCLA CS 111 Lab 1. "Time Travel Shell""
+UCLA CS 111 Lab 1. "Time Travel Shell"
 Professor Peter Reiher
 Winter 2014
 
@@ -38,6 +38,7 @@ Part A
 	4. Implement the read/printer for -p
 	5. Test timetrash -p
 	6. Submit
+		- check for TODO, FIXME, DIAGNOSTIC, PLACEHOLDER, etc tags
 		- update README
 		- Use "make dist" to create .tar.gz
 	7. See if we want to do design problems for 1a?

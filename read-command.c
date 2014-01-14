@@ -1,14 +1,14 @@
 /*-----------------------------------------------------------------------------
-  UCLA CS 111 Lab 1. "Time Travel Shell""
-  Professor Peter Reiher
-  Winter 2014
+	UCLA CS 111 Lab 1. "Time Travel Shell"
+	Professor Peter Reiher
+	Winter 2014
 
-  FILE:   read-command.c
-  DESCR:  Reads input shell script into commands.
+	FILE:   read-command.c
+	DESCR:  Reads input shell script into commands.
 
-  AUTHOR(s):
-  Alan Kha        904030522 akhahaha@gmail.com
-  Braden Anderson 203744563 bradencanderson@gmail.com
+	AUTHOR(s):
+	Alan Kha        904030522 akhahaha@gmail.com
+	Braden Anderson 203744563 bradencanderson@gmail.com
 
 -----------------------------------------------------------------------------*/
 
@@ -16,32 +16,32 @@
 #include "command.h"
 #include "command-internals.h"
 
-#include <ctype.h>
+#include <ctype.h>		// required to perform isalnum()
 #include <error.h>
-#include <stdbool.h>
-#include <stdio.h> // required to print diagnostic text
-#include <stdlib.h>
-#include <string.h> // strings: scanning, finding, etc
+#include <stdbool.h>	// required for boolean functions
+#include <stdio.h>		// required to print diagnostic text
+#include <stdlib.h>		// required to free memory
+#include <string.h>		// required for strchr()
 
 // Linked list of command(tree)s
 struct command_stream
 {
-  command_t* comm;
-  command_t* next;
+	command_t* comm;
+	command_t* next;
 };
 
 // Enumerated token types
 enum token_type
 {
-  HEAD,	// used for dummy head of token lists
-  SUBSHELL,
-  LEFT,
-  RIGHT,
-  AND,
-  OR,
-  PIPE,
-  SEMICOLON,
-  WORD
+	HEAD,		// used for dummy head of token lists
+	SUBSHELL,
+	LEFT,
+	RIGHT,
+	AND,
+	OR,
+	PIPE,
+	SEMICOLON,
+	WORD
 };
 
 // Linked list of tokens. Stores type and content (for subshells and words)
@@ -69,83 +69,84 @@ token_t* new_token (enum token_type type, char* content)
 	tok->type = type;
 	tok->content = content;
 	tok->next = NULL;
-	
+
 	return tok;
 }
 
 // Determines if a character can be part of a simple word
 bool is_word (char c)
 {
-  if (isalnum(c) || strchr("!%+,-./:@^_", c) != NULL)
-    return true;
-  
-  return false;
+	if (isalnum(c) || strchr("!%+,-./:@^_", c) != NULL)
+		return true;
+
+	return false;
 }
 
 // DIAGNOSTIC FUNCTION: Outputs all tokens of a token stream to stdout
 void output_token_stream (token_stream_t* head_stream)
 {
-  token_stream_t* curr_stream = head_stream;
-  int count = 1;
-  while (curr_stream != NULL)
-  {
-    printf("TOKEN %i\n", count);
+	token_stream_t* curr_stream = head_stream;
 
-    token_t* curr = curr_stream->head->next; // next to skip the dummy header
+	int count = 1;
+	while (curr_stream->head->next != NULL)
+	{
+		printf("TOKEN STREAM %i:\n", count);
 
-    while (curr != NULL)
-    {
-      switch (curr->type)
-      {
-        case SUBSHELL: printf(curr->content); putchar('+'); break;
-        case LEFT: printf("LEFT+"); break;
-        case RIGHT: printf("RIGHT+"); break;
-        case AND: printf("AND+"); break;
-        case OR: printf("OR+"); break;
-        case PIPE: printf("PIPE+"); break;
-        case SEMICOLON: printf("SEMICOLON+"); break;
-        case WORD: printf(curr->content); putchar('+'); break;
-        default: break;
-      };
+		token_t* curr = curr_stream->head->next; // skips dummy header
 
-      curr = curr->next;
-    }
+		while (curr != NULL)
+		{
+			switch (curr->type)
+			{
+				case SUBSHELL: printf(curr->content); putchar('+'); break;
+				case LEFT: printf("LEFT+"); break;
+				case RIGHT: printf("RIGHT+"); break;
+				case AND: printf("AND+"); break;
+				case OR: printf("OR+"); break;
+				case PIPE: printf("PIPE+"); break;
+				case SEMICOLON: printf("SEMICOLON+"); break;
+				case WORD: printf(curr->content); putchar('+'); break;
+				default: break;
+			};
 
-    putchar('\n');
-    curr_stream = curr_stream->next;
-    count++;
-  }
+			curr = curr->next;
+		}
 
-  return;
+		putchar('\n');
+		curr_stream = curr_stream->next;
+		count++;
+	}
+
+	return;
 }
 
 // Deallocates all allocated memory associated with a token stream
 void free_tokens (token_stream_t* head_stream)
 {
-  token_stream_t* curr_stream = head_stream;
-  token_stream_t* prev_stream;
+	token_stream_t* curr_stream = head_stream;
+	token_stream_t* prev_stream;
 
-  while (curr_stream != NULL)
-  {
-    token_t* curr = curr_stream->head;
-    token_t* prev;
+	while (curr_stream != NULL)
+	{
+		token_t* curr = curr_stream->head;
+		token_t* prev;
 
-    while (curr != NULL)
-    {
-      if (curr->content != NULL)
-        free(curr->content);
+		while (curr != NULL)
+		{
+			if (curr->content != NULL)
+				free(curr->content);
 
-      prev = curr;
-      curr = curr->next;
-      free(prev);
-    }
+			prev = curr;
+			curr = curr->next;
+			free(prev);
+		}
 
-    prev_stream = curr_stream;
-    curr_stream = curr_stream->next;
-    free(prev_stream);
-  }
+		prev_stream = curr_stream;
+		curr_stream = curr_stream->next;
+		free(prev_stream);
+	}
 
-  return;
+	return;
 }
 
 // Converts an input script into a token stream
@@ -184,15 +185,15 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 				if (c == '(') // count for nested subshells
 					nested++;
 				else if (c == ')') // close subshell
-        {
-          nested--;
+				{
+					nested--;
 
-          if (nested == 0) // break if outermost subshell is closed
-          {
-            script++; index++; c = *script; // consume last close parens
-            break;
-          }
-        }
+					if (nested == 0) // break if outermost subshell is closed
+					{
+						script++; index++; c = *script; // consume last close parens
+						break;
+					}
+				}
 
 				// load into subshell buffer
 				subshell[count] = c;
@@ -206,7 +207,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 				}
 			}
 
-      // create subshell token
+			// create subshell token
 			curr_token->next = new_token(SUBSHELL, subshell);
 			curr_token = curr_token->next;
 		}
@@ -220,14 +221,14 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 			curr_token->next = new_token(LEFT, NULL);
 			curr_token = curr_token->next;
 
-      script++; index++; c = *script;
+			script++; index++; c = *script;
 		}
 		else if (c == '>') // RIGHT REDIRECT
 		{
 			curr_token->next = new_token(RIGHT, NULL);
 			curr_token = curr_token->next;
 
-      script++; index++; c = *script;
+			script++; index++; c = *script;
 		}
 		else if (c == '&') // check & or &&
 		{
@@ -238,7 +239,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 				curr_token->next = new_token(AND, NULL);
 				curr_token = curr_token->next;
 
-        script++; index++; c = *script;
+				script++; index++; c = *script;
 			}
 			else // single & is illegal?
 			{
@@ -255,7 +256,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 				curr_token->next = new_token(OR, NULL);
 				curr_token = curr_token->next;
 
-        script++; index++; c = *script;
+				script++; index++; c = *script;
 			}
 			else // PIPE
 			{
@@ -268,57 +269,57 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 			curr_token->next = new_token(SEMICOLON, NULL);
 			curr_token = curr_token->next;
 
-      script++; index++; c = *script;
+			script++; index++; c = *script;
 		}
 		else if (c == ' ' || c == '\t') // WHITESPACE
 		{
 			// do nothing
 			script++; index++; c = *script;
 		}
-    else if (c == '\n') // NEWLINE
-    {
-      // start next token_stream only if current stream has been used
-      if (curr_token->type != HEAD)
-      {
-        curr_stream->next = checked_malloc(sizeof(token_stream_t));
-        curr_stream = curr_stream->next;
-        curr_stream->head = new_token(HEAD, NULL);
-        curr_token = curr_stream->head;
-      }
+		else if (c == '\n') // NEWLINE
+		{
+			// start next token_stream only if current stream has been used
+			if (curr_token->type != HEAD)
+			{
+				curr_stream->next = checked_malloc(sizeof(token_stream_t));
+				curr_stream = curr_stream->next;
+				curr_stream->head = new_token(HEAD, NULL);
+				curr_token = curr_stream->head;
+			}
 
-      script++; index++; c = *script;
+			script++; index++; c = *script;
 		}
-    else if (is_word(c)) // WORD
-    {
-      size_t count = 0;
-      size_t word_size = 16;
-      char* word = checked_malloc(word_size);
+		else if (is_word(c)) // WORD
+		{
+			size_t count = 0;
+			size_t word_size = 16;
+			char* word = checked_malloc(word_size);
 
-      do
-      {
-        // load into word buffer
-        word[count] = c;
-        count++;
+			do
+			{
+				// load into word buffer
+				word[count] = c;
+				count++;
 
-        // expand word buffer if necessary
-        if (count == word_size)
-        {
-          word_size = word_size * 2;
-          word = checked_grow_alloc(word, &word_size);
-        }
+				// expand word buffer if necessary
+				if (count == word_size)
+				{
+					word_size = word_size * 2;
+					word = checked_grow_alloc(word, &word_size);
+				}
 
-        script++; index++; c = *script;
-      } while (is_word(c) && index < script_size);
+				script++; index++; c = *script;
+			} while (is_word(c) && index < script_size);
 
-      // create word token
-      curr_token->next = new_token(WORD, word);
-      curr_token = curr_token->next;
-    }
-    else // UNRECOGNIZED CHARACTER
-    {
-      putchar('+'); putchar(c); error(2, 0, "Syntax error. Unrecognized character in script.");
-      return head_stream; // TODO force exit?
-    }
+			// create word token
+			curr_token->next = new_token(WORD, word);
+			curr_token = curr_token->next;
+		}
+		else // UNRECOGNIZED CHARACTER
+		{
+			error(2, 0, "Syntax error. Unrecognized character in script.");
+			return head_stream; // TODO force exit?
+		}
 	}
 
 	return head_stream;
@@ -334,7 +335,7 @@ make_command_stream (int (*getbyte) (void *),
 
 	int next;
 
-  // create cstring buffer of input with comments stripped out
+	// create buffer of input with comments stripped out
 	do
 	{
 		next = getbyte(arg);
@@ -344,12 +345,10 @@ make_command_stream (int (*getbyte) (void *),
 			do
 			{
 				next = getbyte(arg);
-			} while (next != -1 && next != '\n');
+			} while (next != -1 && next != EOF && next != '\n');
 		}
 
-		// TODO: test for illegal chars
-
-		if( next != -1 )
+		if (next != -1 && next != EOF)
 		{
 			// load into buffer
 			buffer[count] = next;
@@ -364,33 +363,36 @@ make_command_stream (int (*getbyte) (void *),
 		}
 	} while(next != -1);
 
-  printf("Buffer loaded...\n"); // DIAGNOSTIC  
-  printf(buffer); // DIAGNOSTIC
+	printf("Buffer loaded...\n"); // DIAGNOSTIC
+	printf(buffer); // DIAGNOSTIC
 
 	// process buffer into token stream
 	token_stream_t* head = make_token_stream(buffer, count);
 
-  printf("Token streams created...\n"); // DIAGNOSTIC  
-  output_token_stream(head); // DIAGNOSTIC
+	printf("Token streams created...\n"); // DIAGNOSTIC
+	output_token_stream(head); // DIAGNOSTIC
 
-  // TODO: parse token streams into command streams
-  // subshells should be run through make_token_stream and the command stream converter recursively?
+	/* TODO: parse token streams into command streams
+		- subshells should be run through make_token_stream 
+			and the command stream converter recursively?
+		- handle EOF token?
+	*/
 
-  // TODO: deallocate memory
+	// TODO: deallocate memory
 	free(buffer);
-  free_tokens(head);
+	free_tokens(head);
 
-	error(1, 0, "command reading not yet implemented"); // TODO: delete this when finished
+	error(1, 0, "command making not yet implemented"); // TODO: delete this
 	return 0;
 }
 
 command_t
 read_command_stream (command_stream_t s)
 {
-  /* FIXME: Replace this with your implementation too.  */
+	/* FIXME: Replace this with your implementation too.  */
 
-  command_stream_t suse = s; // PLACEHOLDER arguments cannot be unused
+	command_stream_t suse = s; // PLACEHOLDER arguments cannot be unused
 
-  error(1, 0, "command reading not yet implemented");
-  return 0;
+	error(1, 0, "command reading not yet implemented");
+	return 0;
 }
