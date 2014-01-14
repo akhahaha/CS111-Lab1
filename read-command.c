@@ -16,7 +16,9 @@
 #include "command.h"
 #include "command-internals.h"
 
+#include <ctype.h>
 #include <error.h>
+#include <stdbool.h>
 #include <stdio.h> // required to print diagnostic text
 #include <string.h> // strings: scanning, finding, etc
 
@@ -56,7 +58,7 @@ struct token_stream
 {
 	token_t* head;
 	token_stream_t* next;
-}
+};
 
 // Creates a new token with specified type and pointer to content string
 token_t* new_token (enum token_type type, char* content)
@@ -80,14 +82,14 @@ bool is_word (char c)
 }
 
 // DIAGNOSTIC FUNCTION Outputs all tokens of a token stream to stdout.
-bool output_token_stream (token_stream_t head_stream)
+bool output_token_stream (token_stream_t* head_stream)
 {
-  token_stream_t curr_stream = head_stream;
+  token_stream_t* curr_stream = head_stream;
   int count = 1;
   while (curr_stream != NULL)
   {
     printf("TOKEN "+count+"\n");
-    token_t curr = curr_stream->head->next; // next to skip the dummy header
+    token_t curr* = curr_stream->head->next; // next to skip the dummy header
 
     while (curr != NULL)
     {
@@ -107,19 +109,19 @@ bool output_token_stream (token_stream_t head_stream)
       curr = curr->next;
     }
 
-    putchar("\n");
+    putchar('\n');
   }
 
   return true;
 }
 
 // Converts an input script into a token stream
-token_stream* make_token_stream (char* script, size_t script_size)
+token_stream_t* make_token_stream (char* script, size_t script_size)
 {
 	token_t* head_token = new_token(HEAD, NULL);
 	token_t* curr_token = head_token;
 
-	token_stream_t* head_stream = (token_stream_t*) checked_malloc(sizeof(token_stream_t));
+	token_stream_t* head_stream = checked_malloc(sizeof(token_stream_t));
 	token_stream_t* curr_stream = head_stream;
 	curr_stream->head = head_token;
 
@@ -142,7 +144,7 @@ token_stream* make_token_stream (char* script, size_t script_size)
 				c++; index++;
 				if (index == script_size)
 				{
-					error(2, 0, "Syntax error. EOF reached before subshell was closed.")
+					error(2, 0, "Syntax error. EOF reached before subshell was closed.");
 					// TODO force exit
 				}
 
@@ -312,7 +314,7 @@ make_command_stream (int (*getbyte) (void *),
 
 	// free(buffer); // free() not defined
 
-	error (1, 0, "command reading not yet implemented");
+	error(1, 0, "command reading not yet implemented");
 	return 0;
 }
 
@@ -323,6 +325,6 @@ read_command_stream (command_stream_t s)
 
   command_stream_t suse = s; // PLACEHOLDER arguments cannot be unused
 
-  error (1, 0, "command reading not yet implemented");
+  error(1, 0, "command reading not yet implemented");
   return 0;
 }
