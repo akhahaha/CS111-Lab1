@@ -226,12 +226,14 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 		else if (c == '\n') // NEWLINE
 		{
       printf("Making new token stream...\n"); // DIAGNOSTIC
-      
+
 			// start next token_stream
 			curr_stream->next = checked_malloc(sizeof(token_stream_t));
 			curr_stream = curr_stream->next;
 			curr_stream->head = new_token(HEAD, NULL);
 			curr_token = curr_stream->head;
+
+      c++; index++;
 		}
 		// TODO process simple words
     else if (is_word(c)) // WORD
