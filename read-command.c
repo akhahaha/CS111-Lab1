@@ -33,7 +33,7 @@ struct command_stream
 // Enumerated token types
 enum token_type
 {
-	HEAD,	// used for dummy head of token lists
+  HEAD,	// used for dummy head of token lists
   SUBSHELL,
   LEFT,
   RIGHT,
@@ -142,11 +142,11 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 			// grab contents until subshell is closed
 			while (nested > 0)
 			{
-				c++; index++;
+				script++; index++;
 				if (index == script_size)
 				{
 					error(2, 0, "Syntax error. EOF reached before subshell was closed.");
-					// TODO force exit
+					return head_stream; // TODO force exit
 				}
 
 				if (c == '(') // count for nested subshells
@@ -173,21 +173,26 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 		else if (c == ')') // CLOSE PARENS
 		{
 			error(2, 0, "Syntax error. Close parens found without matching open parens.");
-			// TODO force exit?
+			return head_stream; // TODO force exit?
 		}
 		else if (c == '<') // LEFT REDIRECT
 		{
 			curr_token->next = new_token(LEFT, NULL);
 			curr_token = curr_token->next;
+
+      script++; index++;
 		}
 		else if (c == '>') // RIGHT REDIRECT
 		{
 			curr_token->next = new_token(RIGHT, NULL);
 			curr_token = curr_token->next;
+
+      script++; index++;
 		}
 		else if (c == '&') // check & or &&
 		{
-			c++; index++;
+			script++; index++;
+
 			if (c == '&') // AND
 			{
 				curr_token->next = new_token(AND, NULL);
@@ -196,12 +201,13 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 			else // single & is illegal?
 			{
 				error(2, 0, "Syntax error. Single '&' not allowed.");
-				// TODO force exit?
+				return head_stream; // TODO force exit?
 			}
 		}
 		else if (c == '|') // check | or ||, TODO: what about |||||?
 		{
-			c++; index++;
+			script++; index++;
+
 			if (c== '|') // OR
 			{
 				curr_token->next = new_token(OR, NULL);
@@ -217,11 +223,13 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 		{
 			curr_token->next = new_token(SEMICOLON, NULL);
 			curr_token = curr_token->next;
+
+      script++; index++;
 		}
 		else if (c == ' ' || c == '\t') // WHITESPACE
 		{
 			// do nothing
-			c++; index++;
+			script++; index++;
 		}
 		else if (c == '\n') // NEWLINE
 		{
@@ -233,9 +241,8 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 			curr_stream->head = new_token(HEAD, NULL);
 			curr_token = curr_stream->head;
 
-      c++; index++;
+      script++; index++;
 		}
-		// TODO process simple words
     else if (is_word(c)) // WORD
     {
       size_t count = 0;
@@ -264,8 +271,8 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
     }
     else // UNRECOGNIZED CHARACTER
     {
-      error(2, 0, "Syntax error. Unrecognized character in script.");
-      // TODO force exit?
+      putchar('+'); putchar(c); error(2, 0, "Syntax error. Unrecognized character in script.");
+      return head_stream// TODO force exit?
     }
 	}
 
@@ -312,6 +319,7 @@ make_command_stream (int (*getbyte) (void *),
 		}
 	} while(next != -1);
 
+  printf(buffer);
   printf("Buffer loaded...\n"); // DIAGNOSTIC
 
 	// process buffer into token stream
