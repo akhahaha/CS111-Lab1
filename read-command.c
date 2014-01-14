@@ -63,7 +63,7 @@ struct token_stream
 // Creates a new token with specified type and pointer to content string
 token_t* new_token (enum token_type type, char* content)
 {
-	token_t* tok = (token_stream_t*) checked_malloc(sizeof(token_stream_t));
+	token_t* tok = checked_malloc(sizeof(token_t));
 
 	tok->type = type;
 	tok->content = content;
@@ -136,7 +136,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 
 			size_t count = 0;
 			size_t subshell_size = 64;
-			char* subshell = (char *) checked_malloc(subshell_size);
+			char* subshell = checked_malloc(subshell_size);
 
 			// grab contents until subshell is closed
 			while (nested > 0)
@@ -166,7 +166,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 			}
 
       // create subshell token
-			curr_token-> = new_token(SUBSHELL, subshell);
+			curr_token->next = new_token(SUBSHELL, subshell);
 			curr_token = curr_token->next;
 		}
 		else if (c == ')') // CLOSE PARENS
@@ -176,12 +176,12 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 		}
 		else if (c == '<') // LEFT REDIRECT
 		{
-			curr_token-> = new_token(LEFT, NULL);
+			curr_token->next = new_token(LEFT, NULL);
 			curr_token = curr_token->next;
 		}
 		else if (c == '>') // RIGHT REDIRECT
 		{
-			curr_token-> = new_token(RIGHT, NULL);
+			curr_token->next = new_token(RIGHT, NULL);
 			curr_token = curr_token->next;
 		}
 		else if (c == '&') // check & or &&
@@ -203,18 +203,18 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 			c++; index++;
 			if (c== '|') // OR
 			{
-				curr_token-> = new_token(OR, NULL);
+				curr_token->next = new_token(OR, NULL);
 				curr_token = curr_token->next;
 			}
 			else // PIPE
 			{
-				curr_token-> new_token(OR, NULL);
+				curr_token->next new_token(OR, NULL);
 				curr_token = curr_token->next;
 			}
 		}
 		else if (c == ';') // SEMICOLON
 		{
-			curr_token-> = new_token(SEMICOLON, NULL);
+			curr_token->next = new_token(SEMICOLON, NULL);
 			curr_token = curr_token->next;
 		}
 		else if (c == ' ' || c == '\t') // WHITESPACE
@@ -225,7 +225,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 		else if (c == '\n') // NEWLINE
 		{
 			// start next token_stream
-			curr_stream->next = (token_stream_t*) checked_malloc(sizeof(token_stream_t));
+			curr_stream->next = checked_malloc(sizeof(token_stream_t));
 			curr_stream = curr_stream->next;
 			curr_stream->head = new_token(HEAD, NULL);
 			curr_token = curr_stream->head;
@@ -235,7 +235,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
     {
       size_t count = 0;
       size_t word_size = 16;
-      char* word = (char *) checked_malloc(word_size);
+      char* word = checked_malloc(word_size);
 
       do
       {
@@ -273,7 +273,7 @@ make_command_stream (int (*getbyte) (void *),
 {
 	size_t count = 0;
 	size_t buffer_size = 1024;
-	char* buffer = (char *) checked_malloc(buffer_size);
+	char* buffer = checked_malloc(buffer_size);
 
 	int next;
 
@@ -308,7 +308,7 @@ make_command_stream (int (*getbyte) (void *),
 	} while(next != -1);
 
 	// process buffer into token stream
-	token* head = make_token_stream(buffer);
+	token_stream_t* head = make_token_stream(buffer, count);
   
   output_token_stream(head); // DIAGNOSTIC
 
