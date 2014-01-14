@@ -88,8 +88,8 @@ bool output_token_stream (token_stream_t* head_stream)
   int count = 1;
   while (curr_stream != NULL)
   {
-    printf("TOKEN "+count+"\n");
-    token_t curr* = curr_stream->head->next; // next to skip the dummy header
+    printf("TOKEN "+count); putchar ('\n');
+    token_t* curr = curr_stream->head->next; // next to skip the dummy header
 
     while (curr != NULL)
     {
@@ -208,7 +208,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 			}
 			else // PIPE
 			{
-				curr_token->next new_token(OR, NULL);
+				curr_token->next = new_token(OR, NULL);
 				curr_token = curr_token->next;
 			}
 		}
