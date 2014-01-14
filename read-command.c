@@ -89,7 +89,8 @@ bool output_token_stream (token_stream_t* head_stream)
   int count = 1;
   while (curr_stream != NULL)
   {
-    printf("TOKEN "+count); putchar ('\n');
+    printf("TOKEN "); putchar(count); putchar ('\n');
+
     token_t* curr = curr_stream->head->next; // next to skip the dummy header
 
     while (curr != NULL)
@@ -142,7 +143,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 			// grab contents until subshell is closed
 			while (nested > 0)
 			{
-				script++; index++;
+				script++; index++; c = *script;
 				if (index == script_size)
 				{
 					error(2, 0, "Syntax error. EOF reached before subshell was closed.");
@@ -180,18 +181,18 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 			curr_token->next = new_token(LEFT, NULL);
 			curr_token = curr_token->next;
 
-      script++; index++;
+      script++; index++; c = *script;
 		}
 		else if (c == '>') // RIGHT REDIRECT
 		{
 			curr_token->next = new_token(RIGHT, NULL);
 			curr_token = curr_token->next;
 
-      script++; index++;
+      script++; index++; c = *script;
 		}
 		else if (c == '&') // check & or &&
 		{
-			script++; index++;
+			script++; index++; c = *script;
 
 			if (c == '&') // AND
 			{
@@ -206,7 +207,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 		}
 		else if (c == '|') // check | or ||, TODO: what about |||||?
 		{
-			script++; index++;
+			script++; index++; c = *script;
 
 			if (c== '|') // OR
 			{
@@ -224,12 +225,12 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 			curr_token->next = new_token(SEMICOLON, NULL);
 			curr_token = curr_token->next;
 
-      script++; index++;
+      script++; index++; c = *script;
 		}
 		else if (c == ' ' || c == '\t') // WHITESPACE
 		{
 			// do nothing
-			script++; index++;
+			script++; index++; c = *script;
 		}
 		else if (c == '\n') // NEWLINE
 		{
@@ -241,7 +242,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 			curr_stream->head = new_token(HEAD, NULL);
 			curr_token = curr_stream->head;
 
-      script++; index++;
+      script++; index++; c = *script;
 		}
     else if (is_word(c)) // WORD
     {
@@ -262,7 +263,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
           word = checked_grow_alloc(word, &word_size);
         }
 
-        c++; index++;
+        script++; index++; c = *script;
       } while (is_word(c) && index < script_size);
 
       // create word token
@@ -272,7 +273,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
     else // UNRECOGNIZED CHARACTER
     {
       putchar('+'); putchar(c); error(2, 0, "Syntax error. Unrecognized character in script.");
-      return head_stream// TODO force exit?
+      return head_stream; // TODO force exit?
     }
 	}
 
