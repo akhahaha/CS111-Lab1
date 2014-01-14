@@ -20,12 +20,6 @@
 #include <stdio.h> // required to print diagnostic text
 #include <string.h> // strings: scanning, finding, etc
 
-/* FIXME: You may need to add #include directives, macro definitions,
-   static function definitions, etc.  */
-
-/* FIXME: Define the type 'struct command_stream' here.  This should
-   complete the incomplete type declaration in command.h.  */
-
 // Linked list of command(tree)s
 struct command_stream
 {
@@ -33,20 +27,21 @@ struct command_stream
   command_t* next;
 };
 
-// enumerated list of token types
+// Enumerated token types
 enum token_type
 {
-	HEAD,	// used as a dummy header
-	PIPE,
-	AND,
-	OR,
-	WORD,
-	SEMICOLON,
-	SUBSHELL;
-	LEFT,
-	RIGHT
+	HEAD,	// used for dummy head of token lists
+  SUBSHELL,
+  LEFT,
+  RIGHT,
+  AND,
+  OR,
+  PIPE,
+  SEMICOLON,
+  WORD
 };
 
+// Linked list of tokens. Stores type and content (for subshells and words)
 typedef struct token token_t;
 struct token
 {
@@ -55,6 +50,7 @@ struct token
 	token_t* next;
 };
 
+// Linked list of token-lists.
 typedef struct token_stream token_stream_t;
 struct token_stream
 {
@@ -62,7 +58,7 @@ struct token_stream
 	token_stream_t* next;
 }
 
-// creates a new token with specified type and pointer to content string
+// Creates a new token with specified type and pointer to content string
 token_t* new_token (enum token_type type, char* content)
 {
 	token_t* tok = (token_stream_t*) checked_malloc(sizeof(token_stream_t));
@@ -74,6 +70,50 @@ token_t* new_token (enum token_type type, char* content)
 	return tok;
 }
 
+// Determines if a character can be part of a simple word
+bool is_word (char c)
+{
+  if (isalnum(c) || strchr("!%+,-./:@^_", c) != NULL)
+    return true;
+  
+  return false;
+}
+
+// DIAGNOSTIC FUNCTION Outputs all tokens of a token stream to stdout.
+bool output_token_stream (token_stream_t head_stream)
+{
+  token_stream_t curr_stream = head_stream;
+  int count = 1;
+  while (curr_stream != NULL)
+  {
+    printf("TOKEN "+count+"\n");
+    token_t curr = curr_stream->head->next; // next to skip the dummy header
+
+    while (curr != NULL)
+    {
+      switch (curr->type)
+      {
+        case SUBSHELL: printf(curr->content+"+"); break;
+        case LEFT: printf("LEFT+"); break;
+        case RIGHT: printf("RIGHT+"); break;
+        case AND: printf("AND+"); break;
+        case OR: printf("OR+"); break;
+        case PIPE: printf("PIPE+"); break;
+        case SEMICOLON: printf("SEMICOLON+"); break;
+        case WORD: printf(curr->content+"+"); break;
+        default: break;
+      };
+
+      curr = curr->next;
+    }
+
+    putchar("\n");
+  }
+
+  return true;
+}
+
+// Converts an input script into a token stream
 token_stream* make_token_stream (char* script, size_t script_size)
 {
 	token_t* head_token = new_token(HEAD, NULL);
@@ -94,7 +134,7 @@ token_stream* make_token_stream (char* script, size_t script_size)
 
 			size_t count = 0;
 			size_t subshell_size = 64;
-			char* subshell = (char*) checked_malloc(subshell_size);
+			char* subshell = (char *) checked_malloc(subshell_size);
 
 			// grab contents until subshell is closed
 			while (nested > 0)
@@ -102,7 +142,7 @@ token_stream* make_token_stream (char* script, size_t script_size)
 				c++; index++;
 				if (index == script_size)
 				{
-					error (2, 0, "Syntax error. EOF reached before subshell was closed.")
+					error(2, 0, "Syntax error. EOF reached before subshell was closed.")
 					// TODO force exit
 				}
 
@@ -123,12 +163,13 @@ token_stream* make_token_stream (char* script, size_t script_size)
 				}
 			}
 
+      // create subshell token
 			curr_token-> = new_token(SUBSHELL, subshell);
 			curr_token = curr_token->next;
 		}
 		else if (c == ')') // CLOSE PARENS
 		{
-			error (2, 0, "Syntax error. Close parens found without matching open parens.");
+			error(2, 0, "Syntax error. Close parens found without matching open parens.");
 			// TODO force exit?
 		}
 		else if (c == '<') // LEFT REDIRECT
@@ -151,7 +192,7 @@ token_stream* make_token_stream (char* script, size_t script_size)
 			}
 			else // single & is illegal?
 			{
-				error (2, 0, "Syntax error. Single '&' not allowed.");
+				error(2, 0, "Syntax error. Single '&' not allowed.");
 				// TODO force exit?
 			}
 		}
@@ -176,7 +217,7 @@ token_stream* make_token_stream (char* script, size_t script_size)
 		}
 		else if (c == ' ' || c == '\t') // WHITESPACE
 		{
-			// ignore
+			// do nothing
 			c++; index++;
 		}
 		else if (c == '\n') // NEWLINE
@@ -188,6 +229,37 @@ token_stream* make_token_stream (char* script, size_t script_size)
 			curr_token = curr_stream->head;
 		}
 		// TODO process simple words
+    else if (is_word(c)) // WORD
+    {
+      size_t count = 0;
+      size_t word_size = 16;
+      char* word = (char *) checked_malloc(word_size);
+
+      do
+      {
+        // load into word buffer
+        word[count] = c;
+        count++;
+
+        // expand word buffer if necessary
+        if (count == word_size)
+        {
+          word_size = word_size * 2;
+          word = checked_grow_alloc(word, &word_size);
+        }
+
+        c++; index++;
+      } while (is_word(c) && index < script_size);
+
+      // create word token
+      curr_token->next = new_token(WORD, word);
+      curr_token = curr_token->next;
+    }
+    else // UNRECOGNIZED CHARACTER
+    {
+      error(2, 0, "Syntax error. Unrecognized character in script.");
+      // TODO force exit?
+    }
 	}
 
 	return head_stream;
@@ -197,17 +269,13 @@ command_stream_t
 make_command_stream (int (*getbyte) (void *),
 		     void *arg)
 {
-  /* FIXME: Replace this with your implementation.  You may need to
-     add auxiliary functions and otherwise modify the source code.
-     You can also use external functions defined in the GNU C Library.  */
-
 	size_t count = 0;
-	size_t buffer_size = 1024; // initial buffer size is 1K chars
-
-	char* buffer = (char *) checked_malloc(buffer_size*sizeof(char));
+	size_t buffer_size = 1024;
+	char* buffer = (char *) checked_malloc(buffer_size);
 
 	int next;
 
+  // create cstring buffer of input with comments stripped out
 	do
 	{
 		next = getbyte(arg);
@@ -235,33 +303,12 @@ make_command_stream (int (*getbyte) (void *),
 				buffer = checked_grow_alloc (buffer, &buffer_size);
 			}
 		}
-		
-		// // if current char ends complete command, process buf into commands
-		// if(next == -1 || next == '\n' || next == ';')
-		// {
-		// 	buffer[count] = '\0';
-		// 	token* head = tokenize_command(buffer);
-		// 	// TODO: add head to forest, somehow.
-			
-		// 	/*
-		// 	 * traverse across command list like so:
-		// 	 *
-		// 	 * while(head != NULL) // DIAGNOSTIC
-		// 	 *{
-		// 	 *	printf("%s ", head->word);
-		// 	 *	head = head->next;
-		// 	 *}
-		// 	 */
-
-		// 	// reset buffer
-		// 	count = 0;
-		// }
-
 	} while(next != -1);
 
 	// process buffer into token stream
 	token* head = make_token_stream(buffer);
   
+  output_token_stream(head); // DIAGNOSTIC
 
 	// free(buffer); // free() not defined
 
