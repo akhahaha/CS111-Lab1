@@ -172,19 +172,26 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 			char* subshell = checked_malloc(subshell_size);
 
 			// grab contents until subshell is closed
-			while (nested > 0)
+			do
 			{
-				script++; index++; c = *script;
-				if (index == script_size)
-				{
-					error(2, 0, "Syntax error. EOF reached before subshell was closed.");
-					return head_stream; // TODO force exit
-				}
-
 				if (c == '(') // count for nested subshells
 					nested++;
 				else if (c == ')') // close subshell
-					nested--;
+        {
+          nested--;
+          if (nested == 0) // break if outermost subshell is closed
+          {
+            script++; index++; c = *script;
+            break;
+          }
+        }
+
+        script++; index++; c = *script;
+        if (index == script_size)
+        {
+          error(2, 0, "Syntax error. EOF reached before subshell was closed.");
+          return head_stream; // TODO force exit
+        }
 
 				// load into subshell buffer
 				subshell[count] = c;
@@ -196,7 +203,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 					subshell_size = subshell_size * 2;
 					subshell = checked_grow_alloc (subshell, &subshell_size);
 				}
-			}
+			} while (nested > 0 && index < script_size);
 
       // create subshell token
 			curr_token->next = new_token(SUBSHELL, subshell);
