@@ -127,8 +127,6 @@ void free_tokens (token_stream_t* head_stream)
 
   while (curr_stream != NULL)
   {
-    printf("TOKEN "); putchar(count); putchar ('\n');
-
     token_t* curr = curr_stream->head;
     token_t* prev;
 
@@ -273,6 +271,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
     {
       // start next token_stream only if current stream has been used
       if (curr_token->type != HEAD)
+      {
         curr_stream->next = checked_malloc(sizeof(token_stream_t));
         curr_stream = curr_stream->next;
         curr_stream->head = new_token(HEAD, NULL);
