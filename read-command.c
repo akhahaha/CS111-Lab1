@@ -20,6 +20,7 @@
 #include <error.h>
 #include <stdbool.h>
 #include <stdio.h> // required to print diagnostic text
+#include <stdlib.h>
 #include <string.h> // strings: scanning, finding, etc
 
 // Linked list of command(tree)s
@@ -224,6 +225,8 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 		}
 		else if (c == '\n') // NEWLINE
 		{
+      printf("Making new token stream...\n"); // DIAGNOSTIC
+      
 			// start next token_stream
 			curr_stream->next = checked_malloc(sizeof(token_stream_t));
 			curr_stream = curr_stream->next;
@@ -307,12 +310,16 @@ make_command_stream (int (*getbyte) (void *),
 		}
 	} while(next != -1);
 
+  printf("Buffer loaded...\n"); // DIAGNOSTIC
+
 	// process buffer into token stream
 	token_stream_t* head = make_token_stream(buffer, count);
+
+  printf("Token streams created...\n"); // DIAGNOSTIC
   
   output_token_stream(head); // DIAGNOSTIC
 
-	// free(buffer); // free() not defined
+	free(buffer);
 
 	error(1, 0, "command reading not yet implemented");
 	return 0;
