@@ -260,7 +260,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 			}
 			else // PIPE
 			{
-				curr_token->next = new_token(OR, NULL);
+				curr_token->next = new_token(PIPE, NULL);
 				curr_token = curr_token->next;
 			}
 		}
@@ -327,29 +327,161 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 
 command_t construct_complete_command (token_t* head_tok)
 {
-	token_t* curr_tok = head_tok;
+	token_t* ctok = head_tok;
 	command_t head = (command_t) checked_malloc(sizeof(struct command));
-	if(!curr_tok)
+	if(!ctok)
 	{
 		printf("Attempting to construct complete command on NULL token!\n");
 	}
 	
+	command_t prev_cmd = NULL;
+	
+	//
+	command_t waiting_for_input = NULL;
+	
+	
 	do
 	{
-		switch (curr_tok->type)
+		// make new command
+		command_t cmd = (command_t) checked_malloc(sizeof( struct command ));
+		// if not the first command
+		if(!head && head != prev_cmd)
 		{
-			case SUBSHELL: printf(curr_tok->content); putchar('+'); break;
-			case LEFT: printf("LEFT+"); break;
-			case RIGHT: printf("RIGHT+"); break;
-			case AND: printf("AND+"); break;
-			case OR: printf("OR+"); break;
-			case PIPE: printf("PIPE+"); break;
-			case SEMICOLON: printf("SEMICOLON+"); break;
-			case WORD: printf(curr_tok->content); putchar('+'); break;
+		
+		}
+		if(!head)
+		{
+			head = cmd;
+		}
+		else
+		{
+			// set prev_cmd
+		}
+		
+		switch (ctok->type)
+		{
+			case SUBSHELL:
+				cmd->type = SUBSHELL_COMMAND;
+			//	printf(ctok->content);
+				putchar('(');
+				// make new command
+				// cmd -> u.subshell_cmd = construct_complete_cmd(
+				//		make_token_stream (ctok->content, strlen(ctok->content)) -> head
+				// );
+				cmd -> u.subshell_command = construct_complete_command(
+					make_token_stream (ctok->content, strlen(ctok->content)) -> head
+				);
+				
+				if(waiting_for_input != NULL)
+				{
+					waiting_for_input->u.command[1] = cmd;
+				}
+				
+				putchar(')');
+				// TODO: make_token_stream() might return multiple HEADs. Maybe use a while loop
+				// and a subshell cmd would have N children (N = # of heads)
+				break;
+			case LEFT:
+				printf("LEFT+");
+				// previous_command -> input = [whatever next word is]
+				// waiting_for_input = [prev cmd]
+				prev_cmd->input = ctok->content;
+				
+				break;
+			case RIGHT:
+				printf("RIGHT+");
+				// previous_command -> output = [whatever next word is]
+				prev_cmd->output = ctok->content;
+				break;
+			case AND: printf("&&");
+				cmd->type = AND_COMMAND;
+				if(waiting_for_input != NULL)
+				{
+					waiting_for_input->u.command[1] = cmd;
+				}
+				
+				cmd->u.command[0] = prev_cmd;
+				waiting_for_input = cmd;
+				break;
+			case OR: printf("||");
+				cmd->type = OR_COMMAND;
+				if(waiting_for_input != NULL)
+				{
+					waiting_for_input->u.command[1] = cmd;
+				}
+				
+				cmd->u.command[0] = prev_cmd;
+				waiting_for_input = cmd;
+				break;
+			case PIPE:
+				cmd->type = PIPE_COMMAND;
+				printf("|");
+				// make new command
+				// cmd -> u.command[0] = previous command
+				if(waiting_for_input != NULL)
+				{
+					waiting_for_input->u.command[1] = cmd;
+				}
+				
+				cmd->u.command[0] = prev_cmd;
+				waiting_for_input = cmd;
+				break;
+			case SEMICOLON:
+				cmd->type = SEQUENCE_COMMAND;
+				printf(";");
+				// make new command
+				// cmd -> u.command[0] = previous command
+				if(waiting_for_input != NULL)
+				{
+					waiting_for_input->u.command[1] = cmd;
+				}
+				
+				cmd->u.command[0] = prev_cmd;
+				waiting_for_input = cmd;
+				break;
+			case WORD:
+				cmd->type = SIMPLE_COMMAND;
+		//		printf(ctok->content);
+				putchar('[');
+			//	putchar('w');
+				size_t i = 0;
+				token_t* ct = ctok;
+				while(1)
+				{
+					i++;
+					if(ct->next == NULL || ct->next->type != WORD)
+						break;
+					else
+						ct = ct->next;
+				}
+			//	printf("[i for %s is %d]",ctok->content,(int)i);
+				cmd->u.word = (char**) checked_malloc((i) * sizeof(char*));
+			//	i = 0;
+				cmd->u.word[0] = ctok->content;
+				printf("%s",cmd->u.word[0]);
+				size_t j;
+				for(j=1; j != i; j++)
+				{
+					putchar(' ');
+					ctok = ctok->next;
+					cmd->u.word[j] = ctok->content;
+					printf("%s",cmd->u.word[j]);
+					
+					
+				}
+				putchar(']');
+				
+				if(waiting_for_input != NULL)
+				{
+					waiting_for_input->u.command[1] = cmd;
+				}
+				
+				waiting_for_input = NULL;
+				break;
 			default: break;
 		};
 		
-	} while( (curr_tok = curr_tok->next) );
+	} while( ctok != NULL && (ctok = ctok->next) != NULL );
 	
 	return head;
 
