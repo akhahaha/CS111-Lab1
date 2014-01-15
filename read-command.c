@@ -328,34 +328,26 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 command_t construct_complete_command (token_t* head_tok)
 {
 	token_t* ctok = head_tok;
-	command_t head = (command_t) checked_malloc(sizeof(struct command));
+	command_t head;
 	if(!ctok)
 	{
 		printf("Attempting to construct complete command on NULL token!\n");
+		return NULL;
 	}
 	
 	command_t prev_cmd = NULL;
 	
-	//
+	// for support for infix format: [word] [operator] [word]
+	// just set waiting_for_input = operator_cmd
 	command_t waiting_for_input = NULL;
-	
-	
+
 	do
 	{
 		// make new command
 		command_t cmd = (command_t) checked_malloc(sizeof( struct command ));
-		// if not the first command
-		if(!head && head != prev_cmd)
-		{
-		
-		}
 		if(!head)
 		{
 			head = cmd;
-		}
-		else
-		{
-			// set prev_cmd
 		}
 		
 		switch (ctok->type)
@@ -382,20 +374,14 @@ command_t construct_complete_command (token_t* head_tok)
 				// and a subshell cmd would have N children (N = # of heads)
 				break;
 			case LEFT:
-			//	printf("LEFT+");
-				// previous_command -> input = [whatever next word is]
-				// waiting_for_input = [prev cmd]
-				// next token should be word
+				// next token should be word (assumption)
 				ctok = ctok->next;
 				//assert(ctok->type == WORD)
 				prev_cmd->input = ctok->content;
 				
 				break;
 			case RIGHT:
-			//	printf("RIGHT+");
-				// previous_command -> output = [whatever next word is]
-				
-				// next token should be word
+				// next token should be word (assumption)
 				ctok = ctok->next;
 				//assert(ctok->type == WORD)
 				prev_cmd->output = ctok->content;
@@ -423,8 +409,6 @@ command_t construct_complete_command (token_t* head_tok)
 			case PIPE:
 				cmd->type = PIPE_COMMAND;
 				printf("|");
-				// make new command
-				// cmd -> u.command[0] = previous command
 				if(waiting_for_input != NULL)
 				{
 					waiting_for_input->u.command[1] = cmd;
@@ -436,8 +420,6 @@ command_t construct_complete_command (token_t* head_tok)
 			case SEMICOLON:
 				cmd->type = SEQUENCE_COMMAND;
 				printf(";");
-				// make new command
-				// cmd -> u.command[0] = previous command
 				if(waiting_for_input != NULL)
 				{
 					waiting_for_input->u.command[1] = cmd;
@@ -448,9 +430,7 @@ command_t construct_complete_command (token_t* head_tok)
 				break;
 			case WORD:
 				cmd->type = SIMPLE_COMMAND;
-		//		printf(ctok->content);
 				putchar('[');
-			//	putchar('w');
 				size_t i = 0;
 				token_t* ct = ctok;
 				while(1)
@@ -461,9 +441,8 @@ command_t construct_complete_command (token_t* head_tok)
 					else
 						ct = ct->next;
 				}
-			//	printf("[i for %s is %d]",ctok->content,(int)i);
 				cmd->u.word = (char**) checked_malloc((i) * sizeof(char*));
-			//	i = 0;
+
 				cmd->u.word[0] = ctok->content;
 				printf("%s",cmd->u.word[0]);
 				size_t j;
@@ -482,7 +461,7 @@ command_t construct_complete_command (token_t* head_tok)
 				}
 				
 				waiting_for_input = NULL;
-				prev_cmd = cmd; // for redirection
+				prev_cmd = cmd; // for redirection support
 				break;
 			default: break;
 		};
@@ -524,25 +503,7 @@ command_stream_t construct_command_stream (token_stream_t* tok_head_stream)
 			curr_command = curr_command->next;
 			curr_command->comm = cmd;
 		}
-/*
-		while (curr != NULL)
-		{
-			switch (curr->type)
-			{
-				case SUBSHELL: printf(curr->content); putchar('+'); break;
-				case LEFT: printf("LEFT+"); break;
-				case RIGHT: printf("RIGHT+"); break;
-				case AND: printf("AND+"); break;
-				case OR: printf("OR+"); break;
-				case PIPE: printf("PIPE+"); break;
-				case SEMICOLON: printf("SEMICOLON+"); break;
-				case WORD: printf(curr->content); putchar('+'); break;
-				default: break;
-			};
 
-			curr = curr->next;
-		}
-*/
 		putchar('\n');
 		tok_curr_stream = tok_curr_stream->next;
 		count++;
