@@ -382,15 +382,22 @@ command_t construct_complete_command (token_t* head_tok)
 				// and a subshell cmd would have N children (N = # of heads)
 				break;
 			case LEFT:
-				printf("LEFT+");
+			//	printf("LEFT+");
 				// previous_command -> input = [whatever next word is]
 				// waiting_for_input = [prev cmd]
+				// next token should be word
+				ctok = ctok->next;
+				//assert(ctok->type == WORD)
 				prev_cmd->input = ctok->content;
 				
 				break;
 			case RIGHT:
-				printf("RIGHT+");
+			//	printf("RIGHT+");
 				// previous_command -> output = [whatever next word is]
+				
+				// next token should be word
+				ctok = ctok->next;
+				//assert(ctok->type == WORD)
 				prev_cmd->output = ctok->content;
 				break;
 			case AND: printf("&&");
@@ -466,8 +473,6 @@ command_t construct_complete_command (token_t* head_tok)
 					ctok = ctok->next;
 					cmd->u.word[j] = ctok->content;
 					printf("%s",cmd->u.word[j]);
-					
-					
 				}
 				putchar(']');
 				
@@ -477,6 +482,7 @@ command_t construct_complete_command (token_t* head_tok)
 				}
 				
 				waiting_for_input = NULL;
+				prev_cmd = cmd; // for redirection
 				break;
 			default: break;
 		};
