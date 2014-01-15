@@ -26,8 +26,8 @@
 // Linked list of command(tree)s
 struct command_stream
 {
-	command_t* comm;
-	command_t* next;
+	command_t comm;
+	command_stream_t next;
 };
 
 // Enumerated token types
@@ -325,6 +325,95 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 	return head_stream;
 }
 
+command_t construct_complete_command (token_t* head_tok)
+{
+	token_t* curr_tok = head_tok;
+	command_t head = (command_t) checked_malloc(sizeof(struct command));
+	if(!curr_tok)
+	{
+		printf("Attempting to construct complete command on NULL token!\n");
+	}
+	
+	do
+	{
+		switch (curr_tok->type)
+		{
+			case SUBSHELL: printf(curr_tok->content); putchar('+'); break;
+			case LEFT: printf("LEFT+"); break;
+			case RIGHT: printf("RIGHT+"); break;
+			case AND: printf("AND+"); break;
+			case OR: printf("OR+"); break;
+			case PIPE: printf("PIPE+"); break;
+			case SEMICOLON: printf("SEMICOLON+"); break;
+			case WORD: printf(curr_tok->content); putchar('+'); break;
+			default: break;
+		};
+		
+	} while( (curr_tok = curr_tok->next) );
+	
+	return head;
+
+}
+
+// TODO: better function name
+command_stream_t construct_command_stream (token_stream_t* tok_head_stream)
+{
+//	token_stream_t* head_stream
+
+	token_stream_t* tok_curr_stream = tok_head_stream;
+	
+	command_stream_t head_command = NULL;
+	command_stream_t curr_command = head_command;
+
+	int count = 1;
+	while (tok_curr_stream->head->next != NULL)
+	{
+		printf("PROCESSING TOKEN STREAM %i:\n", count);
+
+		token_t* curr = tok_curr_stream->head->next; // skips dummy header
+		command_t cmd = construct_complete_command (curr);
+		
+		// if this is the first complete command
+		if(!head_command)
+		{
+			head_command = (command_stream_t) checked_malloc(sizeof(struct command_stream));
+			head_command->comm = cmd;
+			curr_command = head_command;
+		}
+		else
+		{
+			curr_command->next = (command_stream_t) checked_malloc(sizeof(struct command_stream));
+			curr_command = curr_command->next;
+			curr_command->comm = cmd;
+		}
+/*
+		while (curr != NULL)
+		{
+			switch (curr->type)
+			{
+				case SUBSHELL: printf(curr->content); putchar('+'); break;
+				case LEFT: printf("LEFT+"); break;
+				case RIGHT: printf("RIGHT+"); break;
+				case AND: printf("AND+"); break;
+				case OR: printf("OR+"); break;
+				case PIPE: printf("PIPE+"); break;
+				case SEMICOLON: printf("SEMICOLON+"); break;
+				case WORD: printf(curr->content); putchar('+'); break;
+				default: break;
+			};
+
+			curr = curr->next;
+		}
+*/
+		putchar('\n');
+		tok_curr_stream = tok_curr_stream->next;
+		count++;
+	}
+
+	return head_command;
+}
+
+
 command_stream_t
 make_command_stream (int (*getbyte) (void *),
 		     void *arg)
@@ -371,16 +460,20 @@ make_command_stream (int (*getbyte) (void *),
 
 	printf("Token streams created...\n"); // DIAGNOSTIC
 	output_token_stream(head); // DIAGNOSTIC
+	
+	printf("\n\n\n");
 
 	/* TODO: parse token streams into command streams
 		- subshells should be run through make_token_stream 
 			and the command stream converter recursively?
 		- handle EOF token?
 	*/
+	
+	command_stream_t command_stream = construct_command_stream(head);
 
 	// TODO: deallocate memory
 	free(buffer);
-	free_tokens(head);
+//	free_tokens(head); TODO: determine a better way to clean up memory (?)
 
 	error(1, 0, "command making not yet implemented"); // TODO: delete this
 	return 0;
