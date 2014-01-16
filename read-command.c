@@ -330,7 +330,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 command_t construct_complete_command (token_t* head_tok)
 {
 	token_t* ctok = head_tok;
-	command_t head = NULL;
+	command_t root = NULL;
 	if(!ctok)
 	{
 		printf("Attempting to construct complete command on NULL token!\n");
@@ -338,6 +338,7 @@ command_t construct_complete_command (token_t* head_tok)
 	}
 	
 	command_t prev_cmd = NULL;
+	command_t prev_word = NULL;
 	command_t cmd = NULL;
 	
 	// for support for infix format: [word] [operator] [word]
@@ -348,9 +349,9 @@ command_t construct_complete_command (token_t* head_tok)
 	{
 		// make new command
 		cmd = (command_t) checked_malloc(sizeof( struct command ));
-		if(!head)
+		if(!root)
 		{
-			head = cmd;
+			root = cmd;
 		}
 		
 		switch (ctok->type)
@@ -367,69 +368,81 @@ command_t construct_complete_command (token_t* head_tok)
 					make_token_stream (ctok->content, strlen(ctok->content)) -> head
 				);
 				
-				if(waiting_for_input != NULL)
+				prev_word = cmd; // for redirection support
+				if(prev_cmd)
 				{
-					waiting_for_input->u.command[1] = cmd;
+					prev_cmd->u.command[1] = cmd;
 				}
 				
 				putchar(')');
 				// TODO: make_token_stream() might return multiple HEADs. Maybe use a while loop
 				// and a subshell cmd would have N children (N = # of heads)
+			//	root = cmd;
+				
+				// TODO: treat this like a word
 				break;
 			case LEFT:
 				// next token should be word (assumption)
 				ctok = ctok->next;
 				//assert(ctok->type == WORD)
-				prev_cmd->input = ctok->content;
+				prev_word->input = ctok->content;
 				
+			//	root = cmd;
 				break;
 			case RIGHT:
 				// next token should be word (assumption)
 				ctok = ctok->next;
 				//assert(ctok->type == WORD)
-				prev_cmd->output = ctok->content;
+				prev_word->output = ctok->content;
+			//	root = cmd;
 				break;
 			case AND: printf("&&");
 				cmd->type = AND_COMMAND;
-				if(waiting_for_input != NULL)
-				{
-					waiting_for_input->u.command[1] = cmd;
-				}
+			//	if(waiting_for_input != NULL)
+			//	{
+			//		waiting_for_input->u.command[1] = cmd;
+			//	}
+			//	if(!prev_cmd && prev_cmd->type != SIMPLE_COMMAND)
+			//		prev_cmd->u.command[1] = cmd;
 				
-				cmd->u.command[0] = prev_cmd;
-				waiting_for_input = cmd;
+				cmd->u.command[0] = root; //(prev_cmd ? prev_cmd : prev_word);
+			//	waiting_for_input = cmd;
+				root = cmd;
 				break;
 			case OR: printf("||");
 				cmd->type = OR_COMMAND;
-				if(waiting_for_input != NULL)
+			/*	if(waiting_for_input != NULL)
 				{
 					waiting_for_input->u.command[1] = cmd;
-				}
+				}*/
 				
-				cmd->u.command[0] = prev_cmd;
-				waiting_for_input = cmd;
+				cmd->u.command[0] = root; //(prev_cmd ? prev_cmd : prev_word);
+			//	waiting_for_input = cmd;
+				root = cmd;
 				break;
 			case PIPE:
 				cmd->type = PIPE_COMMAND;
 				printf("|");
-				if(waiting_for_input != NULL)
+			/*	if(waiting_for_input != NULL)
 				{
 					waiting_for_input->u.command[1] = cmd;
-				}
+				}*/
 				
-				cmd->u.command[0] = prev_cmd;
-				waiting_for_input = cmd;
+				cmd->u.command[0] = root; //(prev_cmd ? prev_cmd : prev_word);
+			//	waiting_for_input = cmd;
+				root = cmd;
 				break;
 			case SEMICOLON:
 				cmd->type = SEQUENCE_COMMAND;
 				printf(";");
-				if(waiting_for_input != NULL)
+			/*	if(waiting_for_input != NULL)
 				{
 					waiting_for_input->u.command[1] = cmd;
-				}
+				}*/
 				
-				cmd->u.command[0] = prev_cmd;
-				waiting_for_input = cmd;
+				cmd->u.command[0] = root; //(prev_cmd ? prev_cmd : prev_word);
+			//	waiting_for_input = cmd;
+				root = cmd;
 				break;
 			case WORD:
 				cmd->type = SIMPLE_COMMAND;
@@ -460,20 +473,27 @@ command_t construct_complete_command (token_t* head_tok)
 				cmd->u.word[j] = NULL;
 				putchar(']');
 				
-				if(waiting_for_input != NULL)
+			/*	if(waiting_for_input != NULL)
 				{
 					waiting_for_input->u.command[1] = cmd;
 				}
 				
-				waiting_for_input = NULL;
-				prev_cmd = cmd; // for redirection support
+				waiting_for_input = NULL;*/
+				prev_word = cmd; // for redirection support
+			/*	if(prev_cmd)
+				{
+					prev_cmd->u.command[1] = cmd;
+				}*/
+				root->u.command[1] = cmd;
 				break;
 			default: break;
 		};
+		if(cmd->type != SIMPLE_COMMAND && cmd->type != SUBSHELL_COMMAND)
+			prev_cmd = cmd;
 		
 	} while( ctok != NULL && (ctok = ctok->next) != NULL );
 	
-	return head;
+	return root;
 
 }
 
@@ -493,7 +513,7 @@ command_stream_t construct_command_stream (token_stream_t* tok_head_stream)
 		printf("PROCESSING TOKEN STREAM %i:\n", count);
 
 		token_t* curr = tok_curr_stream->head->next; // skips dummy header
-		command_t cmd = construct_complete_command (curr);
+		command_t cmd = construct_complete_command (curr);	// root of command tree
 		
 		// if this is the first complete command
 		if(!head_command)
@@ -595,5 +615,5 @@ read_command_stream (command_stream_t s)
 	
 	
 //	error(1, 0, "command reading not yet implemented");
-	return head_command->comm;
+	return (head_command ? head_command->comm : NULL);
 }
