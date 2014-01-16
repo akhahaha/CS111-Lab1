@@ -15,6 +15,7 @@
 #include "alloc.h"
 #include "command.h"
 #include "command-internals.h"
+#include "stack.c"
 
 #include <ctype.h>		// required to perform isalnum()
 #include <error.h>
@@ -337,7 +338,12 @@ command_t construct_complete_command (token_t* head_tok)
 		return NULL;
 	}
 	
-	command_t prev_cmd = NULL;
+	stack* ops = (stack*) checked_malloc(sizeof(stack));
+	ops->num_items = 0;
+	stack* cmds = (stack*) checked_malloc(sizeof(stack));
+	cmds->num_items = 0;
+	
+//	command_t prev_cmd = NULL;
 	command_t prev_word = NULL;
 	command_t cmd = NULL;
 	
@@ -369,10 +375,10 @@ command_t construct_complete_command (token_t* head_tok)
 				);
 				
 				prev_word = cmd; // for redirection support
-				if(prev_cmd)
+		/*		if(prev_cmd)
 				{
 					prev_cmd->u.command[1] = cmd;
-				}
+				}*/
 				
 				putchar(')');
 				// TODO: make_token_stream() might return multiple HEADs. Maybe use a while loop
@@ -380,6 +386,7 @@ command_t construct_complete_command (token_t* head_tok)
 			//	root = cmd;
 				
 				// TODO: treat this like a word
+				push(cmds, cmd);
 				break;
 			case LEFT:
 				// next token should be word (assumption)
@@ -397,6 +404,7 @@ command_t construct_complete_command (token_t* head_tok)
 			//	root = cmd;
 				break;
 			case AND: printf("&&");
+				// if empty OR stack.peek() is not a pipe, then we pop
 				cmd->type = AND_COMMAND;
 			//	if(waiting_for_input != NULL)
 			//	{
@@ -408,8 +416,35 @@ command_t construct_complete_command (token_t* head_tok)
 				cmd->u.command[0] = root; //(prev_cmd ? prev_cmd : prev_word);
 			//	waiting_for_input = cmd;
 				root = cmd;
+				
+				if(
+					peek(ops)->type == PIPE_COMMAND ||
+					peek(ops)->type == OR_COMMAND ||
+					peek(ops)->type == AND_COMMAND				
+				)
+				{
+					// pop twice from cmds
+					command_t right_child = pop(cmds);
+					command_t left_child = pop(cmds);
+					
+					command_t new_cmd = pop(ops);
+					
+					new_cmd->u.command[0] = left_child;
+					new_cmd->u.command[1] = right_child;
+					// repush new tree onto cmds
+					
+					push(cmds, new_cmd);
+					
+					push(ops, cmd);
+				}
+				else
+				{
+					push(ops, cmd);
+				}
 				break;
 			case OR: printf("||");
+				// if empty OR stack.peek() is not a pipe, then we pop
+				
 				cmd->type = OR_COMMAND;
 			/*	if(waiting_for_input != NULL)
 				{
@@ -419,8 +454,34 @@ command_t construct_complete_command (token_t* head_tok)
 				cmd->u.command[0] = root; //(prev_cmd ? prev_cmd : prev_word);
 			//	waiting_for_input = cmd;
 				root = cmd;
+				
+				if(
+					peek(ops)->type == PIPE_COMMAND ||
+					peek(ops)->type == OR_COMMAND ||
+					peek(ops)->type == AND_COMMAND				
+				)
+				{
+					// pop twice from cmds
+					command_t right_child = pop(cmds);
+					command_t left_child = pop(cmds);
+					
+					command_t new_cmd = pop(ops);
+					
+					new_cmd->u.command[0] = left_child;
+					new_cmd->u.command[1] = right_child;
+					// repush new tree onto cmds
+					
+					push(cmds, new_cmd);
+					
+					push(ops, cmd);
+				}
+				else
+				{
+					push(ops, cmd);
+				}
 				break;
 			case PIPE:
+				// pipes are highest priority, so pop off stack
 				cmd->type = PIPE_COMMAND;
 				printf("|");
 			/*	if(waiting_for_input != NULL)
@@ -428,11 +489,29 @@ command_t construct_complete_command (token_t* head_tok)
 					waiting_for_input->u.command[1] = cmd;
 				}*/
 				
-				cmd->u.command[0] = root; //(prev_cmd ? prev_cmd : prev_word);
+			//	cmd->u.command[0] = root; //(prev_cmd ? prev_cmd : prev_word);
 			//	waiting_for_input = cmd;
 				root = cmd;
+				
+				if(peek(ops)->type == PIPE_COMMAND)
+				{
+					// pop twice from cmds
+					command_t right_child = pop(cmds);
+					command_t left_child = pop(cmds);
+					
+					cmd->u.command[0] = left_child;
+					cmd->u.command[1] = right_child;
+					// repush new tree onto cmds
+					
+					push(cmds, cmd);
+				}
+				else
+				{
+					push(ops, cmd);
+				}
 				break;
 			case SEMICOLON:
+				// if stack.peek() is not a {pipe, and, or}, then we pop
 				cmd->type = SEQUENCE_COMMAND;
 				printf(";");
 			/*	if(waiting_for_input != NULL)
@@ -443,6 +522,25 @@ command_t construct_complete_command (token_t* head_tok)
 				cmd->u.command[0] = root; //(prev_cmd ? prev_cmd : prev_word);
 			//	waiting_for_input = cmd;
 				root = cmd;
+				push(ops,cmd);
+				
+				// only pop if another semicolon
+				if(peek(ops)->type == SEQUENCE_COMMAND)
+				{
+					// pop twice from cmds
+					command_t right_child = pop(cmds);
+					command_t left_child = pop(cmds);
+					
+					cmd->u.command[0] = left_child;
+					cmd->u.command[1] = right_child;
+					// repush new tree onto cmds
+					
+					push(cmds, cmd);
+				}
+				else
+				{
+					push(ops, cmd);
+				}
 				break;
 			case WORD:
 				cmd->type = SIMPLE_COMMAND;
@@ -485,13 +583,26 @@ command_t construct_complete_command (token_t* head_tok)
 					prev_cmd->u.command[1] = cmd;
 				}*/
 				root->u.command[1] = cmd;
+				push(cmds, cmd);
 				break;
 			default: break;
 		};
-		if(cmd->type != SIMPLE_COMMAND && cmd->type != SUBSHELL_COMMAND)
-			prev_cmd = cmd;
+	/*	if(cmd->type != SIMPLE_COMMAND && cmd->type != SUBSHELL_COMMAND)
+			prev_cmd = cmd;*/
 		
 	} while( ctok != NULL && (ctok = ctok->next) != NULL );
+	
+	// empty cmds stack
+	while(!is_empty(cmds))
+	{
+		if(is_empty(ops))
+		{
+			// throw exception
+		}
+		
+		root = peek(cmds);
+		// root is top of cmds stack
+	}
 	
 	return root;
 
