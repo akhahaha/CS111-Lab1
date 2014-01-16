@@ -61,6 +61,8 @@ struct token_stream
 	token_stream_t* next;
 };
 
+command_stream_t head_command;
+
 // Creates a new token with specified type and pointer to content string
 token_t* new_token (enum token_type type, char* content)
 {
@@ -328,7 +330,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 command_t construct_complete_command (token_t* head_tok)
 {
 	token_t* ctok = head_tok;
-	command_t head;
+	command_t head = NULL;
 	if(!ctok)
 	{
 		printf("Attempting to construct complete command on NULL token!\n");
@@ -336,6 +338,7 @@ command_t construct_complete_command (token_t* head_tok)
 	}
 	
 	command_t prev_cmd = NULL;
+	command_t cmd = NULL;
 	
 	// for support for infix format: [word] [operator] [word]
 	// just set waiting_for_input = operator_cmd
@@ -344,7 +347,7 @@ command_t construct_complete_command (token_t* head_tok)
 	do
 	{
 		// make new command
-		command_t cmd = (command_t) checked_malloc(sizeof( struct command ));
+		cmd = (command_t) checked_malloc(sizeof( struct command ));
 		if(!head)
 		{
 			head = cmd;
@@ -441,7 +444,7 @@ command_t construct_complete_command (token_t* head_tok)
 					else
 						ct = ct->next;
 				}
-				cmd->u.word = (char**) checked_malloc((i) * sizeof(char*));
+				cmd->u.word = (char**) checked_malloc((i+1) * sizeof(char*));
 
 				cmd->u.word[0] = ctok->content;
 				printf("%s",cmd->u.word[0]);
@@ -453,6 +456,8 @@ command_t construct_complete_command (token_t* head_tok)
 					cmd->u.word[j] = ctok->content;
 					printf("%s",cmd->u.word[j]);
 				}
+				// set last word pointer to NULL
+				cmd->u.word[j] = NULL;
 				putchar(']');
 				
 				if(waiting_for_input != NULL)
@@ -479,7 +484,7 @@ command_stream_t construct_command_stream (token_stream_t* tok_head_stream)
 
 	token_stream_t* tok_curr_stream = tok_head_stream;
 	
-	command_stream_t head_command = NULL;
+	head_command = NULL;
 	command_stream_t curr_command = head_command;
 
 	int count = 1;
@@ -574,17 +579,21 @@ make_command_stream (int (*getbyte) (void *),
 	free(buffer);
 //	free_tokens(head); TODO: determine a better way to clean up memory (?)
 
-	error(1, 0, "command making not yet implemented"); // TODO: delete this
-	return 0;
+//	error(1, 0, "command making not yet implemented"); // TODO: delete this
+	return command_stream;
 }
 
 command_t
 read_command_stream (command_stream_t s)
 {
 	/* FIXME: Replace this with your implementation too.  */
-
+	int i;
 	command_stream_t suse = s; // PLACEHOLDER arguments cannot be unused
 
-	error(1, 0, "command reading not yet implemented");
-	return 0;
+	// pop off head of command stream
+	head_command = head_command->next;
+	
+	
+//	error(1, 0, "command reading not yet implemented");
+	return head_command->comm;
 }
