@@ -608,12 +608,14 @@ read_command_stream (command_stream_t s)
 {
 	/* FIXME: Replace this with your implementation too.  */
 	int i;
-	command_stream_t suse = s; // PLACEHOLDER arguments cannot be unused
+	command_stream_t suse = head_command;
 
 	// pop off head of command stream
-	head_command = head_command->next;
+//	if(s == head_command
+	if(head_command)
+		head_command = head_command->next;
 	
 	
 //	error(1, 0, "command reading not yet implemented");
-	return (head_command ? head_command->comm : NULL);
+	return (suse ? suse->comm : NULL);
 }
