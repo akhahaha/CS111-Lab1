@@ -8,18 +8,16 @@
 	
 	NOTES:	Max items is currently 4 (should not need more for this purpose)
 			Remember to set num_items on initialization.
+			
+	SOURCE:	"Notes from C++ Introduction" (1997) by Jonathan Levene @ MIT
+			http://groups.csail.mit.edu/graphics/classes/6.837/F04/cpp_notes/
+			c++_notes.html
 
 	AUTHOR(s):
 	Alan Kha        904030522 akhahaha@gmail.com
 	Braden Anderson 203744563 bradencanderson@gmail.com
 
 -----------------------------------------------------------------------------*/
-
-/*
- * watch out for segfaults
- * max items is 4
- * remember to set num_items before use
- */
 
 typedef struct stack stack;
 struct stack
