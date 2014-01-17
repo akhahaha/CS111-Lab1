@@ -15,7 +15,7 @@
 #include "alloc.h"
 #include "command.h"
 #include "command-internals.h"
-#include "stack.c"
+#include "stack.h"
 
 #include <ctype.h>		// required to perform isalnum()
 #include <error.h>
