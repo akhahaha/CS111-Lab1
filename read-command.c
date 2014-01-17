@@ -7,8 +7,8 @@
 	DESCR:  Reads input shell script into commands.
 
 	AUTHOR(s):
-	Alan Kha        904030522 akhahaha@gmail.com
-	Braden Anderson 203744563 bradencanderson@gmail.com
+	Alan Kha        904030522	akhahaha@gmail.com
+	Braden Anderson 203744563	bradencanderson@gmail.com
 
 -----------------------------------------------------------------------------*/
 
