@@ -51,7 +51,7 @@ struct token
 {
 	enum token_type type;
 	char* content;
-	int line;				// TODO: token's line number
+	int line;
 	token_t* next;
 };
 
@@ -66,12 +66,13 @@ struct token_stream
 command_stream_t head_command;
 
 // Creates a new token with specified type and pointer to content string
-token_t* new_token (enum token_type type, char* content)
+token_t* new_token (enum token_type type, char* content, int line)
 {
 	token_t* tok = checked_malloc(sizeof(token_t));
 
 	tok->type = type;
 	tok->content = content;
+	tok->line = line;
 	tok->next = NULL;
 
 	return tok;
@@ -156,13 +157,15 @@ void free_tokens (token_stream_t* head_stream)
 // Converts an input script into a token stream
 token_stream_t* make_token_stream (char* script, size_t script_size)
 {
-	token_t* head_token = new_token(HEAD, NULL);
+	token_t* head_token = new_token(HEAD, NULL, -1);
 	token_t* curr_token = head_token;
+	token_t* prev_token = NULL;
 
 	token_stream_t* head_stream = checked_malloc(sizeof(token_stream_t));
 	token_stream_t* curr_stream = head_stream;
 	curr_stream->head = head_token;
 
+	int line = 1;
 	size_t index = 0;
 	char c = *script;
 	while (index < script_size)
@@ -170,6 +173,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 		// input decision tree, TODO: better as switch statement?
 		if (c == '(') // SUBSHELL
 		{
+			int subshell_line = line;
 			int nested = 1;
 
 			size_t count = 0;
@@ -182,11 +186,13 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 				script++; index++; c = *script;
 				if (index == script_size)
 				{
-					error(2, 0, "Syntax error. EOF reached before subshell was closed.");
-					return head_stream; // TODO force exit
+					error(2, 0, "Line %d: Syntax error. EOF reached before subshell was closed.", subshell_line);
+					return NULL;
 				}
 
-				if (c == '(') // count for nested subshells
+				if (c == '\n')
+					line++;
+				else if (c == '(') // count for nested subshells
 					nested++;
 				else if (c == ')') // close subshell
 				{
@@ -212,24 +218,24 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 			}
 
 			// create subshell token
-			curr_token->next = new_token(SUBSHELL, subshell);
+			curr_token->next = new_token(SUBSHELL, subshell, subshell_line); 
 			curr_token = curr_token->next;
 		}
 		else if (c == ')') // CLOSE PARENS
 		{
-			error(2, 0, "Syntax error. Close parens found without matching open parens.");
-			return head_stream; // TODO force exit?
+			error(2, 0, "Line %d: Syntax error. Close parens found without matching open parens.", line);
+			return NULL;
 		}
 		else if (c == '<') // LEFT REDIRECT
 		{
-			curr_token->next = new_token(LEFT, NULL);
+			curr_token->next = new_token(LEFT, NULL, line);
 			curr_token = curr_token->next;
 
 			script++; index++; c = *script;
 		}
 		else if (c == '>') // RIGHT REDIRECT
 		{
-			curr_token->next = new_token(RIGHT, NULL);
+			curr_token->next = new_token(RIGHT, NULL, line);
 			curr_token = curr_token->next;
 
 			script++; index++; c = *script;
@@ -240,15 +246,15 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 
 			if (c == '&') // AND
 			{
-				curr_token->next = new_token(AND, NULL);
+				curr_token->next = new_token(AND, NULL, line);
 				curr_token = curr_token->next;
 
 				script++; index++; c = *script;
 			}
 			else // single & is illegal?
 			{
-				error(2, 0, "Syntax error. Single '&' not allowed.");
-				return head_stream; // TODO force exit?
+				error(2, 0, "Line %d: Syntax error. Single '&' not allowed.", line);
+				return NULL;
 			}
 		}
 		else if (c == '|') // check | or ||, TODO: what about |||||?
@@ -257,20 +263,20 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 
 			if (c== '|') // OR
 			{
-				curr_token->next = new_token(OR, NULL);
+				curr_token->next = new_token(OR, NULL, line);
 				curr_token = curr_token->next;
 
 				script++; index++; c = *script;
 			}
 			else // PIPE
 			{
-				curr_token->next = new_token(PIPE, NULL);
+				curr_token->next = new_token(PIPE, NULL, line);
 				curr_token = curr_token->next;
 			}
 		}
 		else if (c == ';') // SEMICOLON
 		{
-			curr_token->next = new_token(SEMICOLON, NULL);
+			curr_token->next = new_token(SEMICOLON, NULL, line);
 			curr_token = curr_token->next;
 
 			script++; index++; c = *script;
@@ -282,12 +288,14 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 		}
 		else if (c == '\n') // NEWLINE
 		{
+			line++;
+			
 			// start next token_stream only if current stream has been used
 			if (curr_token->type != HEAD)
 			{
 				curr_stream->next = checked_malloc(sizeof(token_stream_t));
 				curr_stream = curr_stream->next;
-				curr_stream->head = new_token(HEAD, NULL);
+				curr_stream->head = new_token(HEAD, NULL, -1);
 				curr_token = curr_stream->head;
 			}
 
@@ -296,7 +304,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 		else if (is_word(c)) // WORD
 		{
 			size_t count = 0;
-			size_t word_size = 16;
+			size_t word_size = 8;
 			char* word = checked_malloc(word_size);
 
 			do
@@ -316,13 +324,13 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 			} while (is_word(c) && index < script_size);
 
 			// create word token
-			curr_token->next = new_token(WORD, word);
+			curr_token->next = new_token(WORD, word, line);
 			curr_token = curr_token->next;
 		}
 		else // UNRECOGNIZED CHARACTER
 		{
-			error(2, 0, "Syntax error. Unrecognized character in script.");
-			return head_stream; // TODO force exit?
+			error(2, 0, "Line %d: Syntax error. Unrecognized character in script.", line);
+			return NULL;
 		}
 	}
 
@@ -330,13 +338,11 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 }
 
 // Pops one op and two operands and reinserts the branch into operand stack
-void make_branch (stack* ops, stack* operands)
+// Returns true if successful
+bool make_branch (stack* ops, stack* operands)
 {
 	if (size(operands) < 2)
-	{
-		error(2, 0, "Syntax error. Not enough operands for new tree.");
-		return; // TODO: EH
-	}
+		return false;
 	
 	// pop twice from operands
 	command_t right_child = pop(operands);
@@ -351,7 +357,7 @@ void make_branch (stack* ops, stack* operands)
 	// push new tree onto operands
 	push(operands, new_cmd);
 	
-	return;
+	return true;
 }
 
 // Converts a list of tokens into a command tree
@@ -361,7 +367,8 @@ command_t make_command_tree (token_t* head_tok)
 
 	if (!curr_tok)
 	{
-		return NULL; // TODO: EH
+		error(3, 0, "Line 0: NULL pointer passed to make_command_tree()");
+		return NULL;
 	}
 
 	// initialize stacks
@@ -369,7 +376,7 @@ command_t make_command_tree (token_t* head_tok)
 	stack* operands = checked_malloc(sizeof(stack)); operands->num_items = 0;
 
 	command_t prev_cmd = NULL;
-	command_t curr_cmd; // = checked_malloc(sizeof(struct command));
+	command_t curr_cmd;
 
 	// process tokens
 	do
@@ -389,9 +396,8 @@ command_t make_command_tree (token_t* head_tok)
 				curr_cmd->u.subshell_command = make_command_tree(
 					make_token_stream(curr_tok->content, strlen(curr_tok->content))->head);
 
-				// TODO: make_token_stream() might return multiple HEADs. Maybe use a while loop
-				// and a subshell curr_cmd would have N children (N = # of heads)
-				// root = curr_cmd;
+				// TODO: multiline subshells?
+				// requires changes to command struct definitino
 
 				// push SUBSHELL tree to operands
 				push(operands, curr_cmd);
@@ -399,18 +405,18 @@ command_t make_command_tree (token_t* head_tok)
 				
 			case LEFT:
 				// check that previous command is a subshell or word
-				if ( !(prev_cmd->type == SIMPLE_COMMAND || prev_cmd->type == SUBSHELL_COMMAND) )
+				if (prev_cmd == NULL || !(prev_cmd->type == SIMPLE_COMMAND || prev_cmd->type == SUBSHELL_COMMAND))
 				{
-					error(2, 0, "399 Syntax error. Redirects can only follow words or subshells.");
+					error(2, 0, "Line %d: Syntax error. Redirects can only follow words or subshells.", curr_tok->line);
 					return NULL; // TODO: EH
 				}
 				else if (prev_cmd->output != NULL)
 				{
-					error(2, 0, "Syntax error. Previous command already has output.");
+					error(2, 0, "Line %d: Syntax error. Previous command already has output. ", curr_tok->line);
 				}
 				else if (prev_cmd->input != NULL)
 				{
-					error(2, 0, "Syntax error. Previous command already has input.");
+					error(2, 0, "Line %d: Syntax error. Previous command already has input.", curr_tok->line);
 				}
 				
 				curr_tok = curr_tok->next;
@@ -420,7 +426,7 @@ command_t make_command_tree (token_t* head_tok)
 				}
 				else
 				{
-					error(2, 0, "Syntax error. Redirects must be followed by words");
+					error(2, 0, "Line %d: Syntax error. Redirects must be followed by words.", curr_tok->line);
 					return NULL; // TODO: EH
 				}
 				
@@ -429,15 +435,15 @@ command_t make_command_tree (token_t* head_tok)
 				
 			case RIGHT:
 				// check that previous command is a subshell or word
-				if ( !(prev_cmd->type == SIMPLE_COMMAND || prev_cmd->type == SUBSHELL_COMMAND) )
+				if (prev_cmd == NULL || !(prev_cmd->type == SIMPLE_COMMAND || prev_cmd->type == SUBSHELL_COMMAND))
 				{
-					error(2, 0, "429 Syntax error. Redirects can only follow words or subshells.");
-			//	printf("dfjkjkjkl");
+					error(2, 0, "Line %d: Syntax error. Redirects can only follow words or subshells.", curr_tok->line);
 					return NULL; // TODO: EH
 				}
 				else if (prev_cmd->output != NULL)
 				{
-					error(2, 0, "Syntax error. Previous command already has output.");
+					error(2, 0, "Line %d: Syntax error. Previous command already has output.", curr_tok->line);
+					return NULL;
 				}
 				
 				curr_tok = curr_tok->next;
@@ -447,7 +453,7 @@ command_t make_command_tree (token_t* head_tok)
 				}
 				else
 				{
-					error(2, 0, "Syntax error. Redirects must be followed by words");
+					error(2, 0, "Line %d: Syntax error. Redirects must be followed by words", curr_tok->line);
 					return NULL; // TODO: EH
 				}
 				
@@ -458,14 +464,18 @@ command_t make_command_tree (token_t* head_tok)
 				curr_cmd->type = AND_COMMAND;
 
 				// if AND has <= priority to operands, pop
-				if (
-					!is_empty(ops) && (
-					peek(ops)->type == PIPE_COMMAND ||
-					peek(ops)->type == OR_COMMAND ||
-					peek(ops)->type == AND_COMMAND
-				) )
+				if (	!is_empty(ops) &&
+						(	peek(ops)->type == PIPE_COMMAND ||
+							peek(ops)->type == OR_COMMAND ||
+							peek(ops)->type == AND_COMMAND
+						)
+					)
 				{
-					make_branch(ops, operands);
+					if (!make_branch(ops, operands))
+					{
+						error(2, 0, "Line %d: Syntax error. Not enough children to create new tree.", curr_tok->line);
+						return NULL;
+					}
 				}
 				
 				// push AND to ops
@@ -476,14 +486,18 @@ command_t make_command_tree (token_t* head_tok)
 				curr_cmd->type = OR_COMMAND;
 
 				// if OR has <= priority to operands, pop
-				if (
-					!is_empty(ops) && (
-					peek(ops)->type == PIPE_COMMAND ||
-					peek(ops)->type == OR_COMMAND ||
-					peek(ops)->type == AND_COMMAND
-				) )
+				if (	!is_empty(ops) &&
+						(	peek(ops)->type == PIPE_COMMAND ||
+							peek(ops)->type == OR_COMMAND ||
+							peek(ops)->type == AND_COMMAND
+						)
+					)
 				{
-					make_branch(ops, operands);
+					if (!make_branch(ops, operands))
+					{
+						error(2, 0, "Line %d: Syntax error. Not enough children to create new tree.", curr_tok->line);
+						return NULL;
+					}
 				}
 				
 				// push OR to ops
@@ -496,7 +510,11 @@ command_t make_command_tree (token_t* head_tok)
 				// if PIPE has <= priority to operands, pop
 				if (!is_empty(ops) && peek(ops)->type == PIPE_COMMAND)
 				{
-					make_branch(ops, operands);
+					if (!make_branch(ops, operands))
+					{
+						error(2, 0, "Line %d: Syntax error. Not enough children to create new tree.", curr_tok->line);
+						return NULL;
+					}
 				}
 				
 				// push PIPE to ops
@@ -508,7 +526,13 @@ command_t make_command_tree (token_t* head_tok)
 
 				// always pop since SEMICOLON <= all ops
 				if (!is_empty(ops))
-					make_branch(ops, operands);
+				{
+					if (!make_branch(ops, operands))
+					{
+						error(2, 0, "Line %d: Syntax error. Not enough children to create new tree.", curr_tok->line);
+						return NULL;
+					}
+				}
 				
 				// push SEMICOLON to ops
 				push(ops, curr_cmd);				
@@ -517,6 +541,7 @@ command_t make_command_tree (token_t* head_tok)
 			case WORD:
 				curr_cmd->type = SIMPLE_COMMAND;
 				
+				// gather up all following words
 				size_t i = 0;
 				token_t* ct = curr_tok;
 				while(1)
@@ -530,32 +555,23 @@ command_t make_command_tree (token_t* head_tok)
 				curr_cmd->u.word = (char**) checked_malloc((i+1) * sizeof(char*));
 
 				curr_cmd->u.word[0] = curr_tok->content;
-			//	printf("%s",curr_cmd->u.word[0]);
 				size_t j;
 				for(j=1; j != i; j++)
 				{
 					curr_tok = curr_tok->next;
 					curr_cmd->u.word[j] = curr_tok->content;
-				//	printf("%s",curr_cmd->u.word[j]);
 				}
 				
 				// set last word pointer to NULL
 				curr_cmd->u.word[j] = NULL;
-
-				/*	if(waiting_for_input != NULL)
-				{
-					waiting_for_input->u.command[1] = curr_cmd;
-				}
-
-				waiting_for_input = NULL;*/
+				
+				// push SIMPLE COMMAND to operands
 				push(operands, curr_cmd);
 				break;
 			default: break;
 		};
 
-		prev_cmd = curr_cmd; // not technically accurate, but does its job
-		
-		
+		prev_cmd = curr_cmd; // save previous command for operand checks		
 	} while(curr_tok != NULL && (curr_tok = curr_tok->next) != NULL );
 
 	// finish tree from existing stack
@@ -564,9 +580,10 @@ command_t make_command_tree (token_t* head_tok)
 		make_branch(ops, operands);
 	}
 	
+	// check for single root
 	if (size(operands) != 1)
 	{
-		error(2, 0, "Syntax error. Tree did not converge into single root.");
+		error(2, 0, "Line %d: Syntax error. Tree did not converge into single root.", curr_tok->line);
 		return NULL;
 	}
 
@@ -574,7 +591,7 @@ command_t make_command_tree (token_t* head_tok)
 }
 
 // TODO: better function name
-command_stream_t construct_command_stream (token_stream_t* tok_head_stream)
+command_stream_t make_command_forest (token_stream_t* tok_head_stream)
 {
 	// token_stream_t* head_stream
 
@@ -586,8 +603,6 @@ command_stream_t construct_command_stream (token_stream_t* tok_head_stream)
 	int count = 1;
 	while (tok_curr_stream->head->next != NULL)
 	{
-	//	printf("PROCESSING TOKEN STREAM %i:\n", count);
-
 		token_t* curr = tok_curr_stream->head->next; // skips dummy header
 		command_t cmd = make_command_tree (curr);	// root of command tree
 
@@ -612,14 +627,13 @@ command_stream_t construct_command_stream (token_stream_t* tok_head_stream)
 	return head_command;
 }
 
-
 command_stream_t make_command_stream (int (*getbyte) (void *), void *arg)
 {
 	size_t count = 0;
 	size_t buffer_size = 1024;
 	char* buffer = checked_malloc(buffer_size);
 
-	int next;
+	char next;
 
 	// create buffer of input with comments stripped out
 	do
@@ -643,28 +657,20 @@ command_stream_t make_command_stream (int (*getbyte) (void *), void *arg)
 			// expand buffer if necessary
 			if (count == buffer_size)
 			{
-				buffer_size = buffer_size * 2; // TODO check for integer overflows necessary?
+				buffer_size = buffer_size * 2;
 				buffer = checked_grow_alloc (buffer, &buffer_size);
 			}
 		}
 	} while(next != -1);
 
 	// process buffer into token stream
-	token_stream_t* head = make_token_stream(buffer, count);
-
-	/* TODO: parse token streams into command streams
-		- subshells should be run through make_token_stream
-			and the command stream converter recursively?
-		- handle EOF token?
-	*/
-
-	command_stream_t command_stream = construct_command_stream(head);
+	token_stream_t* head = make_token_stream(buffer, count);	
+	// process token stream into command forest
+	command_stream_t command_stream = make_command_forest(head);
 
 	// TODO: deallocate memory
 	free(buffer);
 	// free_tokens(head); TODO: determine a better way to clean up memory (?)
-
-	// error(1, 0, "command making not yet implemented"); // TODO: delete this
 	
 	return command_stream;
 }
@@ -676,11 +682,8 @@ command_t read_command_stream (command_stream_t s)
 	command_stream_t suse = head_command;
 
 	// pop off head of command stream
-//	if(s == head_command
 	if(head_command)
 		head_command = head_command->next;
 
-
-//	error(1, 0, "command reading not yet implemented");
 	return (suse ? suse->comm : NULL);
 }
