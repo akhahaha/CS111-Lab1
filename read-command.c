@@ -607,7 +607,7 @@ command_stream_t make_command_forest (token_stream_t* token_stream)
 	command_stream_t curr_tree = head_tree;
 
 	int count = 1;
-	while (curr_stream != NULL)
+	while (curr_stream != NULL && curr_stream->head->next != NULL)
 	{
 		token_t* curr = curr_stream->head->next; // skips dummy header
 		command_t cmd = make_command_tree (curr);	// root of command tree
