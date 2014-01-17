@@ -18,6 +18,7 @@ TIMETRASH_SOURCES = \
   print-command.c
 TIMETRASH_OBJECTS = $(subst .c,.o,$(TIMETRASH_SOURCES))
 
+# make dist is a little bitch
 DIST_SOURCES = \
   $(TIMETRASH_SOURCES) alloc.h command.h command-internals.h Makefile \
   $(TESTS) check-dist README
