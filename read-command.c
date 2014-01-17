@@ -334,7 +334,7 @@ void make_branch (stack* ops, stack* operands)
 {
 	if (size(operands) < 2)
 	{
-		error(2, 0, "Syntax error. Not enough operands for PIPE tree.");
+		error(2, 0, "Syntax error. Not enough operands for new tree.");
 		return; // TODO: EH
 	}
 	
@@ -361,7 +361,6 @@ command_t make_command_tree (token_t* head_tok)
 
 	if (!curr_tok)
 	{
-		printf("Attempting to construct complete command on NULL token!\n");
 		return NULL; // TODO: EH
 	}
 
@@ -370,11 +369,17 @@ command_t make_command_tree (token_t* head_tok)
 	stack* operands = checked_malloc(sizeof(stack)); operands->num_items = 0;
 
 	command_t prev_cmd = NULL;
-	command_t curr_cmd = checked_malloc(sizeof(struct command));
+	command_t curr_cmd; // = checked_malloc(sizeof(struct command));
 
 	// process tokens
 	do
 	{
+		if( !(curr_tok->type == LEFT || curr_tok->type == RIGHT) )
+		{
+			// make new command
+			curr_cmd = checked_malloc(sizeof( struct command ));
+		}
+		
 		switch (curr_tok->type)
 		{
 			case SUBSHELL:
@@ -394,9 +399,9 @@ command_t make_command_tree (token_t* head_tok)
 				
 			case LEFT:
 				// check that previous command is a subshell or word
-				if (prev_cmd->type != SIMPLE_COMMAND && prev_cmd->type != SUBSHELL_COMMAND)
+				if ( !(prev_cmd->type == SIMPLE_COMMAND || prev_cmd->type == SUBSHELL_COMMAND) )
 				{
-					error(2, 0, "Syntax error. Redirects can only follow words or subshells.");
+					error(2, 0, "399 Syntax error. Redirects can only follow words or subshells.");
 					return NULL; // TODO: EH
 				}
 				else if (prev_cmd->output != NULL)
@@ -424,9 +429,10 @@ command_t make_command_tree (token_t* head_tok)
 				
 			case RIGHT:
 				// check that previous command is a subshell or word
-				if (prev_cmd->type != SIMPLE_COMMAND && prev_cmd->type != SUBSHELL_COMMAND)
+				if ( !(prev_cmd->type == SIMPLE_COMMAND || prev_cmd->type == SUBSHELL_COMMAND) )
 				{
-					error(2, 0, "Syntax error. Redirects can only follow words or subshells.");
+					error(2, 0, "429 Syntax error. Redirects can only follow words or subshells.");
+			//	printf("dfjkjkjkl");
 					return NULL; // TODO: EH
 				}
 				else if (prev_cmd->output != NULL)
@@ -452,10 +458,12 @@ command_t make_command_tree (token_t* head_tok)
 				curr_cmd->type = AND_COMMAND;
 
 				// if AND has <= priority to operands, pop
-				if (is_empty(ops) ||
+				if (
+					!is_empty(ops) && (
 					peek(ops)->type == PIPE_COMMAND ||
 					peek(ops)->type == OR_COMMAND ||
-					peek(ops)->type == AND_COMMAND)
+					peek(ops)->type == AND_COMMAND
+				) )
 				{
 					make_branch(ops, operands);
 				}
@@ -468,10 +476,12 @@ command_t make_command_tree (token_t* head_tok)
 				curr_cmd->type = OR_COMMAND;
 
 				// if OR has <= priority to operands, pop
-				if (is_empty(ops) ||
+				if (
+					!is_empty(ops) && (
 					peek(ops)->type == PIPE_COMMAND ||
 					peek(ops)->type == OR_COMMAND ||
-					peek(ops)->type == AND_COMMAND)
+					peek(ops)->type == AND_COMMAND
+				) )
 				{
 					make_branch(ops, operands);
 				}
@@ -484,7 +494,7 @@ command_t make_command_tree (token_t* head_tok)
 				curr_cmd->type = PIPE_COMMAND;
 
 				// if PIPE has <= priority to operands, pop
-				if (peek(ops)->type == PIPE_COMMAND && !is_empty(ops))
+				if (!is_empty(ops) && peek(ops)->type == PIPE_COMMAND)
 				{
 					make_branch(ops, operands);
 				}
@@ -520,19 +530,17 @@ command_t make_command_tree (token_t* head_tok)
 				curr_cmd->u.word = (char**) checked_malloc((i+1) * sizeof(char*));
 
 				curr_cmd->u.word[0] = curr_tok->content;
-				printf("%s",curr_cmd->u.word[0]);
+			//	printf("%s",curr_cmd->u.word[0]);
 				size_t j;
 				for(j=1; j != i; j++)
 				{
-					putchar(' ');
 					curr_tok = curr_tok->next;
 					curr_cmd->u.word[j] = curr_tok->content;
-					printf("%s",curr_cmd->u.word[j]);
+				//	printf("%s",curr_cmd->u.word[j]);
 				}
 				
 				// set last word pointer to NULL
 				curr_cmd->u.word[j] = NULL;
-				putchar(']');
 
 				/*	if(waiting_for_input != NULL)
 				{
@@ -547,8 +555,7 @@ command_t make_command_tree (token_t* head_tok)
 
 		prev_cmd = curr_cmd; // not technically accurate, but does its job
 		
-		// make new command
-		curr_cmd = checked_malloc(sizeof( struct command ));
+		
 	} while(curr_tok != NULL && (curr_tok = curr_tok->next) != NULL );
 
 	// finish tree from existing stack
@@ -579,7 +586,7 @@ command_stream_t construct_command_stream (token_stream_t* tok_head_stream)
 	int count = 1;
 	while (tok_curr_stream->head->next != NULL)
 	{
-		printf("PROCESSING TOKEN STREAM %i:\n", count);
+	//	printf("PROCESSING TOKEN STREAM %i:\n", count);
 
 		token_t* curr = tok_curr_stream->head->next; // skips dummy header
 		command_t cmd = make_command_tree (curr);	// root of command tree
@@ -598,7 +605,6 @@ command_stream_t construct_command_stream (token_stream_t* tok_head_stream)
 			curr_command->comm = cmd;
 		}
 
-		putchar('\n');
 		tok_curr_stream = tok_curr_stream->next;
 		count++;
 	}
@@ -646,11 +652,6 @@ command_stream_t make_command_stream (int (*getbyte) (void *), void *arg)
 	// process buffer into token stream
 	token_stream_t* head = make_token_stream(buffer, count);
 
-	printf("Token streams created...\n"); // DIAGNOSTIC
-	output_token_stream(head); // DIAGNOSTIC
-
-	printf("\n\n\n");
-
 	/* TODO: parse token streams into command streams
 		- subshells should be run through make_token_stream
 			and the command stream converter recursively?
@@ -664,8 +665,6 @@ command_stream_t make_command_stream (int (*getbyte) (void *), void *arg)
 	// free_tokens(head); TODO: determine a better way to clean up memory (?)
 
 	// error(1, 0, "command making not yet implemented"); // TODO: delete this
-
-	printf("\n\n\n");
 	
 	return command_stream;
 }
