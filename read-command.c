@@ -51,6 +51,7 @@ struct token
 {
 	enum token_type type;
 	char* content;
+	int line;				// TODO: token's line number
 	token_t* next;
 };
 
@@ -328,293 +329,250 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 	return head_stream;
 }
 
-command_t construct_complete_command (token_t* head_tok)
+// Pops one op and two operands and reinserts the branch into operand stack
+void make_branch (stack* ops, stack* operands)
 {
-	token_t* ctok = head_tok;
-	command_t root = NULL;
-	if(!ctok)
+	if (size(operands) < 2)
 	{
-		printf("Attempting to construct complete command on NULL token!\n");
-		return NULL;
+		error(2, 0, "Syntax error. Not enough operands for PIPE tree.");
+		return; // TODO: EH
 	}
 	
-	stack* ops = (stack*) checked_malloc(sizeof(stack));
-	ops->num_items = 0;
-	stack* cmds = (stack*) checked_malloc(sizeof(stack));
-	cmds->num_items = 0;
+	// pop twice from operands
+	command_t right_child = pop(operands);
+	command_t left_child = pop(operands);
 	
-//	command_t prev_cmd = NULL;
-	command_t prev_word = NULL;
-	command_t cmd = NULL;
+	// pop once from ops
+	command_t new_cmd = pop(ops);
 	
-	// for support for infix format: [word] [operator] [word]
-	// just set waiting_for_input = operator_cmd
-	command_t waiting_for_input = NULL;
+	new_cmd->u.command[0] = left_child;
+	new_cmd->u.command[1] = right_child;
+	
+	// push new tree onto operands
+	push(operands, new_cmd);
+	
+	return;
+}
 
+// Converts a list of tokens into a command tree
+command_t make_command_tree (token_t* head_tok)
+{
+	token_t* curr_tok = head_tok;
+
+	if (!curr_tok)
+	{
+		printf("Attempting to construct complete command on NULL token!\n");
+		return NULL; // TODO: EH
+	}
+
+	// initialize stacks
+	stack* ops = checked_malloc(sizeof(stack));	ops->num_items = 0;
+	stack* operands = checked_malloc(sizeof(stack)); operands->num_items = 0;
+
+	command_t prev_cmd = NULL;
+	command_t curr_cmd = checked_malloc(sizeof(struct command));
+
+	// process tokens
 	do
 	{
-		// make new command
-		cmd = (command_t) checked_malloc(sizeof( struct command ));
-		if(!root)
-		{
-			root = cmd;
-		}
-		
-		switch (ctok->type)
+		switch (curr_tok->type)
 		{
 			case SUBSHELL:
-				cmd->type = SUBSHELL_COMMAND;
-			//	printf(ctok->content);
-				putchar('(');
-				// make new command
-				// cmd -> u.subshell_cmd = construct_complete_cmd(
-				//		make_token_stream (ctok->content, strlen(ctok->content)) -> head
-				// );
-				cmd -> u.subshell_command = construct_complete_command(
-					make_token_stream (ctok->content, strlen(ctok->content)) -> head
-				);
-				
-				prev_word = cmd; // for redirection support
-		/*		if(prev_cmd)
-				{
-					prev_cmd->u.command[1] = cmd;
-				}*/
-				
-				putchar(')');
+				curr_cmd->type = SUBSHELL_COMMAND;
+
+				// process subshell command tree
+				curr_cmd->u.subshell_command = make_command_tree(
+					make_token_stream(curr_tok->content, strlen(curr_tok->content))->head);
+
 				// TODO: make_token_stream() might return multiple HEADs. Maybe use a while loop
-				// and a subshell cmd would have N children (N = # of heads)
-			//	root = cmd;
-				
-				// TODO: treat this like a word
-				push(cmds, cmd);
+				// and a subshell curr_cmd would have N children (N = # of heads)
+				// root = curr_cmd;
+
+				// push SUBSHELL tree to operands
+				push(operands, curr_cmd);
 				break;
+				
 			case LEFT:
-				// next token should be word (assumption)
-				ctok = ctok->next;
-				//assert(ctok->type == WORD)
-				prev_word->input = ctok->content;
+				// check that previous command is a subshell or word
+				if (prev_cmd->type != SIMPLE_COMMAND && prev_cmd->type != SUBSHELL_COMMAND)
+				{
+					error(2, 0, "Syntax error. Redirects can only follow words or subshells.");
+					return NULL; // TODO: EH
+				}
+				else if (prev_cmd->output != NULL)
+				{
+					error(2, 0, "Syntax error. Previous command already has output.");
+				}
+				else if (prev_cmd->input != NULL)
+				{
+					error(2, 0, "Syntax error. Previous command already has input.");
+				}
 				
-			//	root = cmd;
+				curr_tok = curr_tok->next;
+				if (curr_tok->type == WORD) // followed by a word
+				{
+					prev_cmd->input = curr_tok->content;
+				}
+				else
+				{
+					error(2, 0, "Syntax error. Redirects must be followed by words");
+					return NULL; // TODO: EH
+				}
+				
+				// no pushing required				
 				break;
+				
 			case RIGHT:
-				// next token should be word (assumption)
-				ctok = ctok->next;
-				//assert(ctok->type == WORD)
-				prev_word->output = ctok->content;
-			//	root = cmd;
-				break;
-			case AND: printf("&&");
-				// if empty OR stack.peek() is not a pipe, then we pop
-				cmd->type = AND_COMMAND;
-			//	if(waiting_for_input != NULL)
-			//	{
-			//		waiting_for_input->u.command[1] = cmd;
-			//	}
-			//	if(!prev_cmd && prev_cmd->type != SIMPLE_COMMAND)
-			//		prev_cmd->u.command[1] = cmd;
-				
-				cmd->u.command[0] = root; //(prev_cmd ? prev_cmd : prev_word);
-			//	waiting_for_input = cmd;
-				root = cmd;
-				
-				if(
-					peek(ops)->type == PIPE_COMMAND ||
-					peek(ops)->type == OR_COMMAND ||
-					peek(ops)->type == AND_COMMAND				
-				)
+				// check that previous command is a subshell or word
+				if (prev_cmd->type != SIMPLE_COMMAND && prev_cmd->type != SUBSHELL_COMMAND)
 				{
-					// pop twice from cmds
-					command_t right_child = pop(cmds);
-					command_t left_child = pop(cmds);
-					
-					command_t new_cmd = pop(ops);
-					
-					new_cmd->u.command[0] = left_child;
-					new_cmd->u.command[1] = right_child;
-					// repush new tree onto cmds
-					
-					push(cmds, new_cmd);
-					
-					push(ops, cmd);
+					error(2, 0, "Syntax error. Redirects can only follow words or subshells.");
+					return NULL; // TODO: EH
+				}
+				else if (prev_cmd->output != NULL)
+				{
+					error(2, 0, "Syntax error. Previous command already has output.");
+				}
+				
+				curr_tok = curr_tok->next;
+				if (curr_tok->type == WORD) // followed by a word
+				{
+					prev_cmd->output = curr_tok->content;
 				}
 				else
 				{
-					push(ops, cmd);
+					error(2, 0, "Syntax error. Redirects must be followed by words");
+					return NULL; // TODO: EH
 				}
+				
+				// no pushing required				
 				break;
-			case OR: printf("||");
-				// if empty OR stack.peek() is not a pipe, then we pop
 				
-				cmd->type = OR_COMMAND;
-			/*	if(waiting_for_input != NULL)
-				{
-					waiting_for_input->u.command[1] = cmd;
-				}*/
-				
-				cmd->u.command[0] = root; //(prev_cmd ? prev_cmd : prev_word);
-			//	waiting_for_input = cmd;
-				root = cmd;
-				
-				if(
+			case AND:
+				curr_cmd->type = AND_COMMAND;
+
+				// if AND has <= priority to operands, pop
+				if (is_empty(ops) ||
 					peek(ops)->type == PIPE_COMMAND ||
 					peek(ops)->type == OR_COMMAND ||
-					peek(ops)->type == AND_COMMAND				
-				)
+					peek(ops)->type == AND_COMMAND)
 				{
-					// pop twice from cmds
-					command_t right_child = pop(cmds);
-					command_t left_child = pop(cmds);
-					
-					command_t new_cmd = pop(ops);
-					
-					new_cmd->u.command[0] = left_child;
-					new_cmd->u.command[1] = right_child;
-					// repush new tree onto cmds
-					
-					push(cmds, new_cmd);
-					
-					push(ops, cmd);
+					make_branch(ops, operands);
 				}
-				else
-				{
-					push(ops, cmd);
-				}
+				
+				// push AND to ops
+				push(ops, curr_cmd);				
 				break;
+				
+			case OR:
+				curr_cmd->type = OR_COMMAND;
+
+				// if OR has <= priority to operands, pop
+				if (is_empty(ops) ||
+					peek(ops)->type == PIPE_COMMAND ||
+					peek(ops)->type == OR_COMMAND ||
+					peek(ops)->type == AND_COMMAND)
+				{
+					make_branch(ops, operands);
+				}
+				
+				// push OR to ops
+				push(ops, curr_cmd);				
+				break;
+				
 			case PIPE:
-				// pipes are highest priority, so pop off stack
-				cmd->type = PIPE_COMMAND;
-				printf("|");
-			/*	if(waiting_for_input != NULL)
+				curr_cmd->type = PIPE_COMMAND;
+
+				// if PIPE has <= priority to operands, pop
+				if (peek(ops)->type == PIPE_COMMAND && !is_empty(ops))
 				{
-					waiting_for_input->u.command[1] = cmd;
-				}*/
-				
-			//	cmd->u.command[0] = root; //(prev_cmd ? prev_cmd : prev_word);
-			//	waiting_for_input = cmd;
-				root = cmd;
-				
-				if(peek(ops)->type == PIPE_COMMAND)
-				{
-					// pop twice from cmds
-					command_t right_child = pop(cmds);
-					command_t left_child = pop(cmds);
-					
-					cmd->u.command[0] = left_child;
-					cmd->u.command[1] = right_child;
-					// repush new tree onto cmds
-					
-					push(cmds, cmd);
+					make_branch(ops, operands);
 				}
-				else
-				{
-					push(ops, cmd);
-				}
+				
+				// push PIPE to ops
+				push(ops, curr_cmd);				
 				break;
+				
 			case SEMICOLON:
-				// if stack.peek() is not a {pipe, and, or}, then we pop
-				cmd->type = SEQUENCE_COMMAND;
-				printf(";");
-			/*	if(waiting_for_input != NULL)
-				{
-					waiting_for_input->u.command[1] = cmd;
-				}*/
+				curr_cmd->type = SEQUENCE_COMMAND;
+
+				// always pop since SEMICOLON <= all ops
+				if (!is_empty(ops))
+					make_branch(ops, operands);
 				
-				cmd->u.command[0] = root; //(prev_cmd ? prev_cmd : prev_word);
-			//	waiting_for_input = cmd;
-				root = cmd;
-				push(ops,cmd);
-				
-				// only pop if another semicolon
-				if(peek(ops)->type == SEQUENCE_COMMAND)
-				{
-					// pop twice from cmds
-					command_t right_child = pop(cmds);
-					command_t left_child = pop(cmds);
-					
-					cmd->u.command[0] = left_child;
-					cmd->u.command[1] = right_child;
-					// repush new tree onto cmds
-					
-					push(cmds, cmd);
-				}
-				else
-				{
-					push(ops, cmd);
-				}
+				// push SEMICOLON to ops
+				push(ops, curr_cmd);				
 				break;
+				
 			case WORD:
-				cmd->type = SIMPLE_COMMAND;
-				putchar('[');
+				curr_cmd->type = SIMPLE_COMMAND;
+				
 				size_t i = 0;
-				token_t* ct = ctok;
+				token_t* ct = curr_tok;
 				while(1)
 				{
 					i++;
-					if(ct->next == NULL || ct->next->type != WORD)
+					if (ct->next == NULL || ct->next->type != WORD)
 						break;
 					else
 						ct = ct->next;
 				}
-				cmd->u.word = (char**) checked_malloc((i+1) * sizeof(char*));
+				curr_cmd->u.word = (char**) checked_malloc((i+1) * sizeof(char*));
 
-				cmd->u.word[0] = ctok->content;
-				printf("%s",cmd->u.word[0]);
+				curr_cmd->u.word[0] = curr_tok->content;
+				printf("%s",curr_cmd->u.word[0]);
 				size_t j;
 				for(j=1; j != i; j++)
 				{
 					putchar(' ');
-					ctok = ctok->next;
-					cmd->u.word[j] = ctok->content;
-					printf("%s",cmd->u.word[j]);
+					curr_tok = curr_tok->next;
+					curr_cmd->u.word[j] = curr_tok->content;
+					printf("%s",curr_cmd->u.word[j]);
 				}
+				
 				// set last word pointer to NULL
-				cmd->u.word[j] = NULL;
+				curr_cmd->u.word[j] = NULL;
 				putchar(']');
-				
-			/*	if(waiting_for_input != NULL)
+
+				/*	if(waiting_for_input != NULL)
 				{
-					waiting_for_input->u.command[1] = cmd;
+					waiting_for_input->u.command[1] = curr_cmd;
 				}
-				
+
 				waiting_for_input = NULL;*/
-				prev_word = cmd; // for redirection support
-			/*	if(prev_cmd)
-				{
-					prev_cmd->u.command[1] = cmd;
-				}*/
-				root->u.command[1] = cmd;
-				push(cmds, cmd);
+				push(operands, curr_cmd);
 				break;
 			default: break;
 		};
-	/*	if(cmd->type != SIMPLE_COMMAND && cmd->type != SUBSHELL_COMMAND)
-			prev_cmd = cmd;*/
+
+		prev_cmd = curr_cmd; // not technically accurate, but does its job
 		
-	} while( ctok != NULL && (ctok = ctok->next) != NULL );
-	
-	// empty cmds stack
-	while(!is_empty(cmds))
+		// make new command
+		curr_cmd = checked_malloc(sizeof( struct command ));
+	} while(curr_tok != NULL && (curr_tok = curr_tok->next) != NULL );
+
+	// finish tree from existing stack
+	while(size(ops) > 0)
 	{
-		if(is_empty(ops))
-		{
-			// throw exception
-		}
-		
-		root = peek(cmds);
-		// root is top of cmds stack
+		make_branch(ops, operands);
 	}
 	
-	return root;
+	if (size(operands) != 1)
+	{
+		error(2, 0, "Syntax error. Tree did not converge into single root.");
+		return NULL;
+	}
 
+	return pop(operands); // the root should be the final tree left in operands
 }
 
 // TODO: better function name
 command_stream_t construct_command_stream (token_stream_t* tok_head_stream)
 {
-//	token_stream_t* head_stream
+	// token_stream_t* head_stream
 
 	token_stream_t* tok_curr_stream = tok_head_stream;
-	
+
 	head_command = NULL;
 	command_stream_t curr_command = head_command;
 
@@ -624,8 +582,8 @@ command_stream_t construct_command_stream (token_stream_t* tok_head_stream)
 		printf("PROCESSING TOKEN STREAM %i:\n", count);
 
 		token_t* curr = tok_curr_stream->head->next; // skips dummy header
-		command_t cmd = construct_complete_command (curr);	// root of command tree
-		
+		command_t cmd = make_command_tree (curr);	// root of command tree
+
 		// if this is the first complete command
 		if(!head_command)
 		{
@@ -649,9 +607,7 @@ command_stream_t construct_command_stream (token_stream_t* tok_head_stream)
 }
 
 
-command_stream_t
-make_command_stream (int (*getbyte) (void *),
-		     void *arg)
+command_stream_t make_command_stream (int (*getbyte) (void *), void *arg)
 {
 	size_t count = 0;
 	size_t buffer_size = 1024;
@@ -687,35 +643,34 @@ make_command_stream (int (*getbyte) (void *),
 		}
 	} while(next != -1);
 
-	printf("Buffer loaded...\n"); // DIAGNOSTIC
-	printf(buffer); // DIAGNOSTIC
-
 	// process buffer into token stream
 	token_stream_t* head = make_token_stream(buffer, count);
 
 	printf("Token streams created...\n"); // DIAGNOSTIC
 	output_token_stream(head); // DIAGNOSTIC
-	
+
 	printf("\n\n\n");
 
 	/* TODO: parse token streams into command streams
-		- subshells should be run through make_token_stream 
+		- subshells should be run through make_token_stream
 			and the command stream converter recursively?
 		- handle EOF token?
 	*/
-	
+
 	command_stream_t command_stream = construct_command_stream(head);
 
 	// TODO: deallocate memory
 	free(buffer);
-//	free_tokens(head); TODO: determine a better way to clean up memory (?)
+	// free_tokens(head); TODO: determine a better way to clean up memory (?)
 
-//	error(1, 0, "command making not yet implemented"); // TODO: delete this
+	// error(1, 0, "command making not yet implemented"); // TODO: delete this
+
+	printf("\n\n\n");
+	
 	return command_stream;
 }
 
-command_t
-read_command_stream (command_stream_t s)
+command_t read_command_stream (command_stream_t s)
 {
 	/* FIXME: Replace this with your implementation too.  */
 	int i;
@@ -725,8 +680,8 @@ read_command_stream (command_stream_t s)
 //	if(s == head_command
 	if(head_command)
 		head_command = head_command->next;
-	
-	
+
+
 //	error(1, 0, "command reading not yet implemented");
 	return (suse ? suse->comm : NULL);
 }
