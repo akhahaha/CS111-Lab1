@@ -26,10 +26,10 @@
 /*-----------------------------------------------------------------------------
 	FILE:   stack.h
 	DESCR:  Simple stack implementation repurposed for making command trees
-	
+
 	NOTES:	Max items is currently 4 (should not need more for this purpose)
 			Remember to set num_items on initialization.
-			
+
 	SOURCE:	"Notes from C++ Introduction" (1997) by Jonathan Levene @ MIT
 			http://groups.csail.mit.edu/graphics/classes/6.837/F04/cpp_notes/
 			c++_notes.html
@@ -56,7 +56,7 @@ command_t push (stack *s, command_t cmd)
 {
 	s->commands[s->num_items] = cmd;
 	s->num_items++;
-	
+
 	return cmd;
 }
 
@@ -133,44 +133,6 @@ bool is_word (char c)
 	return false;
 }
 
-// DIAGNOSTIC FUNCTION: Outputs all tokens of a token stream to stdout
-void output_token_stream (token_stream_t* head_stream)
-{
-	token_stream_t* curr_stream = head_stream;
-
-	int count = 1;
-	while (curr_stream->head->next != NULL)
-	{
-		printf("TOKEN STREAM %i:\n", count);
-
-		token_t* curr = curr_stream->head->next; // skips dummy header
-
-		while (curr != NULL)
-		{
-			switch (curr->type)
-			{
-				case SUBSHELL: printf(curr->content); putchar('+'); break;
-				case LEFT: printf("LEFT+"); break;
-				case RIGHT: printf("RIGHT+"); break;
-				case AND: printf("AND+"); break;
-				case OR: printf("OR+"); break;
-				case PIPE: printf("PIPE+"); break;
-				case SEMICOLON: printf("SEMICOLON+"); break;
-				case WORD: printf(curr->content); putchar('+'); break;
-				default: break;
-			};
-
-			curr = curr->next;
-		}
-
-		putchar('\n');
-		curr_stream = curr_stream->next;
-		count++;
-	}
-
-	return;
-}
-
 // Deallocates all allocated memory associated with a token stream
 void free_tokens (token_stream_t* head_stream)
 {
@@ -184,8 +146,9 @@ void free_tokens (token_stream_t* head_stream)
 
 		while (curr != NULL)
 		{
-			if (curr->content != NULL)
-				free(curr->content);
+			// content is passed to command trees
+			// if (curr->content != NULL)
+				// free(curr->content);
 
 			prev = curr;
 			curr = curr->next;
@@ -588,34 +551,36 @@ command_t make_command_tree (token_t* head_tok)
 			case WORD:
 				curr_cmd->type = SIMPLE_COMMAND;
 
-				// gather up all following words
-				size_t i = 0;
+				// count number of following words
+				size_t num_words = 1;
 				token_t* ct = curr_tok;
-				while(1)
+				while (ct->next != NULL && ct->next->type == WORD)
 				{
-					i++;
-					if (ct->next == NULL || ct->next->type != WORD)
-						break;
-					else
-						ct = ct->next;
+					num_words++;
+					ct = ct->next;
 				}
-				curr_cmd->u.word = (char**) checked_malloc((i+1) * sizeof(char*));
 
+				// create string array
+				curr_cmd->u.word = checked_malloc((num_words+1) * sizeof(char*));
+
+				// load words
 				curr_cmd->u.word[0] = curr_tok->content;
-				size_t j;
-				for(j=1; j != i; j++)
+				size_t i;
+				for (i = 1; i < num_words; i++)
 				{
 					curr_tok = curr_tok->next;
-					curr_cmd->u.word[j] = curr_tok->content;
+					curr_cmd->u.word[i] = curr_tok->content;
 				}
 
 				// set last word pointer to NULL
-				curr_cmd->u.word[j] = NULL;
+				curr_cmd->u.word[num_words] = NULL;
 
 				// push SIMPLE COMMAND to operands
 				push(operands, curr_cmd);
 				break;
-			default: break;
+
+			default:
+				break;
 		};
 
 		prev_cmd = curr_cmd; // save previous command for operand checks
@@ -637,9 +602,9 @@ command_t make_command_tree (token_t* head_tok)
 		error(2, 0, "Line %d: Syntax error. Tree did not converge into single root.", line);
 		return NULL;
 	}
-	
+
 	command_t root = pop(operands); // the root should be the final tree left in operands
-	
+
 	// free memory
 	free(ops); free(operands);
 
@@ -731,8 +696,7 @@ command_stream_t make_command_stream (int (*getbyte) (void *), void *arg)
 
 	// TODO: deallocate memory
 	free(buffer);
-	// free_tokens(head); TODO: determine a better way to clean up memory (?)
-	// requires editing simple command making
+	free_tokens(head);
 
 	return command_stream;
 }
@@ -745,18 +709,18 @@ command_t read_command_stream (command_stream_t s)
 
 	// grab the current command
 	command_t c = s->comm;
-	
+
 	// shift the list over
 	if (s->next != NULL)
 	{
 		command_stream_t next = s->next;
 		s->comm = s->next->comm;
 		s->next = s->next->next;
-		
+
 		free(next); // free used node
 	}
 	else
 		s->comm = NULL;
-	
+
 	return (c);
 }
