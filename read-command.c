@@ -199,7 +199,21 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 				}
 
 				if (c == '\n')
+				{
+					// consume all following whitespace
+					while (script[1] == ' ' || script[1] == '\t' || script[1] == '\n')
+					{
+						if (script[1] == '\n')
+							line++;
+						
+						script++;
+						index++;
+					}
+					
+					// pass semicolon
+					c = ';';
 					line++;
+				}
 				else if (c == '(') // count for nested subshells
 					nested++;
 				else if (c == ')') // close subshell
@@ -406,9 +420,6 @@ command_t make_command_tree (token_t* head_tok)
 				curr_cmd->u.subshell_command = make_command_tree(
 					make_token_stream(curr_tok->content, strlen(curr_tok->content))->head);
 
-				// TODO: multiline subshells?
-				// requires changes to command struct definitino
-
 				// push SUBSHELL tree to operands
 				push(operands, curr_cmd);
 				break;
@@ -418,15 +429,17 @@ command_t make_command_tree (token_t* head_tok)
 				if (prev_cmd == NULL || !(prev_cmd->type == SIMPLE_COMMAND || prev_cmd->type == SUBSHELL_COMMAND))
 				{
 					error(2, 0, "Line %d: Syntax error. Redirects can only follow words or subshells.", line);
-					return NULL; // TODO: EH
+					return NULL;
 				}
 				else if (prev_cmd->output != NULL)
 				{
 					error(2, 0, "Line %d: Syntax error. Previous command already has output. ", line);
+					return NULL;
 				}
 				else if (prev_cmd->input != NULL)
 				{
 					error(2, 0, "Line %d: Syntax error. Previous command already has input.", line);
+					return NULL;
 				}
 
 				curr_tok = curr_tok->next;
@@ -694,7 +707,6 @@ command_stream_t make_command_stream (int (*getbyte) (void *), void *arg)
 
 	command_stream_t command_stream = make_command_forest(head);
 
-	// TODO: deallocate memory
 	free(buffer);
 	free_tokens(head);
 
