@@ -205,11 +205,11 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 					{
 						if (script[1] == '\n')
 							line++;
-						
+
 						script++;
 						index++;
 					}
-					
+
 					// pass semicolon
 					c = ';';
 					line++;
@@ -311,7 +311,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 		else if (c == '\n') // NEWLINE
 		{
 			line++;
-			
+
 			// check for preceding redirects
 			if (curr_token->type == LEFT ||	curr_token->type == RIGHT)
 			{
@@ -331,7 +331,7 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 				}
 			}
 			// else command not complete, treat as simple whitespace
-			
+
 			script++; index++; c = *script;
 		}
 		else if (is_word(c)) // WORD
@@ -431,9 +431,6 @@ command_t make_command_tree (token_t* head_tok)
 				curr_cmd->u.subshell_command = make_command_tree(
 					make_token_stream(curr_tok->content, strlen(curr_tok->content))->head);
 
-				// TODO: multiline subshells?
-				// requires changes to command struct definitino
-
 				// push SUBSHELL tree to operands
 				push(operands, curr_cmd);
 				break;
@@ -443,15 +440,17 @@ command_t make_command_tree (token_t* head_tok)
 				if (prev_cmd == NULL || !(prev_cmd->type == SIMPLE_COMMAND || prev_cmd->type == SUBSHELL_COMMAND))
 				{
 					error(2, 0, "Line %d: Syntax error. Redirects can only follow words or subshells.", line);
-					return NULL; // TODO: EH
+					return NULL;
 				}
 				else if (prev_cmd->output != NULL)
 				{
 					error(2, 0, "Line %d: Syntax error. Previous command already has output. ", line);
+					return NULL;
 				}
 				else if (prev_cmd->input != NULL)
 				{
 					error(2, 0, "Line %d: Syntax error. Previous command already has input.", line);
+					return NULL;
 				}
 
 				curr_tok = curr_tok->next;
@@ -713,7 +712,7 @@ command_stream_t make_command_stream (int (*getbyte) (void *), void *arg)
 	// process token stream into command forest
 	if (head == NULL)
 	{
-		error(3, 0, "Line -1: Error during tokenization.");
+		error(4, 0, "Line -1: Error during tokenization.");
 		return NULL;
 	}
 

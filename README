@@ -15,7 +15,8 @@ EXIT CODES
 	0 - Success
 	1 - Unimplemented function or memory allocation failure
 	2 - Syntax error
-	3 - Other errors
+	3 - Command execution error
+	4 - Other error
 
 LIMITATIONS
 	- Does not support multiline subshells
