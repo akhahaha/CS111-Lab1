@@ -311,16 +311,27 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 		else if (c == '\n') // NEWLINE
 		{
 			line++;
-
-			// start next token_stream only if current stream has been used
-			if (curr_token->type != HEAD)
+			
+			// check for preceding redirects
+			if (curr_token->type == LEFT ||	curr_token->type == RIGHT)
 			{
-				curr_stream->next = checked_malloc(sizeof(token_stream_t));
-				curr_stream = curr_stream->next;
-				curr_stream->head = new_token(HEAD, NULL, -1);
-				curr_token = curr_stream->head;
+				error(2, 0, "Line %d: Newline cannot follow redirects.", line);
+				return NULL;
 			}
-
+			else if (curr_token->type == WORD || curr_token->type == SUBSHELL)
+			{
+				// command completed, start new tree
+				// start next token_stream only if current stream has been used
+				if (curr_token->type != HEAD)
+				{
+					curr_stream->next = checked_malloc(sizeof(token_stream_t));
+					curr_stream = curr_stream->next;
+					curr_stream->head = new_token(HEAD, NULL, -1);
+					curr_token = curr_stream->head;
+				}
+			}
+			// else command not complete, treat as simple whitespace
+			
 			script++; index++; c = *script;
 		}
 		else if (is_word(c)) // WORD
@@ -420,6 +431,9 @@ command_t make_command_tree (token_t* head_tok)
 				curr_cmd->u.subshell_command = make_command_tree(
 					make_token_stream(curr_tok->content, strlen(curr_tok->content))->head);
 
+				// TODO: multiline subshells?
+				// requires changes to command struct definitino
+
 				// push SUBSHELL tree to operands
 				push(operands, curr_cmd);
 				break;
@@ -429,17 +443,15 @@ command_t make_command_tree (token_t* head_tok)
 				if (prev_cmd == NULL || !(prev_cmd->type == SIMPLE_COMMAND || prev_cmd->type == SUBSHELL_COMMAND))
 				{
 					error(2, 0, "Line %d: Syntax error. Redirects can only follow words or subshells.", line);
-					return NULL;
+					return NULL; // TODO: EH
 				}
 				else if (prev_cmd->output != NULL)
 				{
 					error(2, 0, "Line %d: Syntax error. Previous command already has output. ", line);
-					return NULL;
 				}
 				else if (prev_cmd->input != NULL)
 				{
 					error(2, 0, "Line %d: Syntax error. Previous command already has input.", line);
-					return NULL;
 				}
 
 				curr_tok = curr_tok->next;
@@ -707,6 +719,7 @@ command_stream_t make_command_stream (int (*getbyte) (void *), void *arg)
 
 	command_stream_t command_stream = make_command_forest(head);
 
+	// TODO: deallocate memory
 	free(buffer);
 	free_tokens(head);
 
