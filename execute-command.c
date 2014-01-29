@@ -112,6 +112,9 @@ void execute_command (command_t c, int time_travel)
 			else
 				c->status = 0;
 			break;
+		case SUBSHELL_COMMAND:
+			execute_command(c->u.subshell_command, time_travel);
+			c->status = c->u.subshell_command->status;
 		default:
 			break;
 	}
