@@ -1,17 +1,18 @@
--------------------------------------------------------------------------------
-UCLA CS 111 Lab 1. "Time Travel Shell"
+Time Travel Shell
+==================
+UCLA CS 111 Lab 1
+-------------------
 Professor Peter Reiher
 Winter 2014
 
-FILE:	README
-
 AUTHOR(s):
-Alan Kha        904030522	akhahaha@gmail.com
-Braden Anderson 203744563	bradencanderson@gmail.com
+Alan Kha		904030522	akhahaha@gmail.com
+Braden Anderson	203744563	bradencanderson@gmail.com
 
 -------------------------------------------------------------------------------
 
 EXIT CODES
+----------
 	0 - Success
 	1 - Unimplemented function or memory allocation failure
 	2 - Syntax error
@@ -19,9 +20,11 @@ EXIT CODES
 	4 - Other error
 
 LIMITATIONS
+-----------
 	- Does not support multiline subshells
 	- Input file (minus comments) is limited to INT_MAX bytes
 	- Has some memory leaks (at least for part A)
 	
 FEATURES
+--------
 	- Supports nested subshells
