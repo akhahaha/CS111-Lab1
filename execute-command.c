@@ -89,28 +89,22 @@ void execute_command (command_t c, int time_travel)
 
 			break;
 		case AND_COMMAND:
-			c->status = 1;
 			execute_command(c->u.command[0], time_travel);
+			c->status = c->u.command[0]->status;
 
 			if(! c->u.command[0]->status) {	
 				execute_command(c->u.command[1], time_travel);
-				if(! c->u.command[1]->status) {	
-					c->status = 0;
-				}
+				c->status = c->u.command[1]->status;
 			}
 			break;
 		case OR_COMMAND:
-			c->status = 1;
 			execute_command(c->u.command[0], time_travel);
+			c->status = c->u.command[0]->status;
 
 			if(c->u.command[0]->status) {	
 				execute_command(c->u.command[1], time_travel);
-				if(! c->u.command[1]->status) {	
-					c->status = 0;
-				}
+				c->status = c->u.command[1]->status;
 			}
-			else
-				c->status = 0;
 			break;
 		case SUBSHELL_COMMAND:
 			execute_command(c->u.subshell_command, time_travel);
@@ -121,6 +115,8 @@ void execute_command (command_t c, int time_travel)
 			execute_command(c->u.command[1], time_travel);
 			c->status = c->u.command[1]->status;
 			break;
+		case PIPE_COMMAND:
+			
 		default:
 			break;
 	}
