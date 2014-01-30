@@ -34,14 +34,13 @@ void execute_command (command_t c, int time_travel)
 {
 	pid_t child;
 	int fd[2];
-	int t_use = time_travel; // PLACEHOLDER arguments cannot be unused
-	
+
 	switch (c->type)
 	{
 		case SIMPLE_COMMAND:
 			// create child to execute command
 			child = fork();
-			
+
 			if (child == 0) // child process
 			{
 				// handle input < redirect
@@ -51,14 +50,14 @@ void execute_command (command_t c, int time_travel)
 					int in;
 					if ((in = open(c->input, O_RDONLY, 0666)) == -1)
 						error(3, 0, "Cannot open input file.");
-						
+
 					// replace standard input with input file
 					if (dup2(in, 0) == -1)
 						error(3, 0, "Cannot perform input redirect.");
 
 					close(in);
 				}
-				
+
 				// handle output > redirect
 				if (c->output)
 				{
@@ -66,21 +65,21 @@ void execute_command (command_t c, int time_travel)
 					int out;
 					if ((out = open(c->output, O_WRONLY|O_CREAT|O_TRUNC, 0666)) == -1)
 						error(3, 0, "Cannot open output file.");
-						
+
 					// replace standard output with output file
 					if (dup2(out, 1) == -1)
 						error(3, 0, "Cannot perform output redirect.");
 
 					close(out);
 				}
-				
+
 				// execute command
 				execvp(c->u.word[0], c->u.word);
 				error(3, 0, "Cannot execute command.");
 			}
 			else if (child > 0) // parent process
 			{
-				// wait for the child process				
+				// wait for the child process
 				int status;
 				waitpid(child, &status, 0);
 				c->status = status;
@@ -96,7 +95,7 @@ void execute_command (command_t c, int time_travel)
 
 			// execute second if first succeeds
 			if (!c->status)
-			{	
+			{
 				execute_command(c->u.command[1], time_travel);
 				c->status = c->u.command[1]->status;
 			}
@@ -109,7 +108,7 @@ void execute_command (command_t c, int time_travel)
 
 			// execute second if first failed
 			if (c->status)
-			{	
+			{
 				execute_command(c->u.command[1], time_travel);
 				c->status = c->u.command[1]->status;
 			}
@@ -130,45 +129,40 @@ void execute_command (command_t c, int time_travel)
 			// initialize pipe
 			if (pipe(fd) == -1)
 				error(3, 0, "Cannot create pipe.");
-				
+
 			// create child to execute commands
 			child = fork();
 			if (child == 0) // child
 			{
-				close(fd[0]); // close read end of pipe
-				
 				// redirect standard output to write end of pipe
-				if (dup2(fd[1], STDOUT_FILENO) == -1)
+				if (dup2(fd[0], 0) == -1)
 					error(3, 0, "Cannot write to pipe.");
-					
+
 				// execute first command
-				execute_command(c->u.command[0], time_travel);				
-				c->status = c->u.command[0]->status;
-				
+				execute_command(c->u.command[1], time_travel);
+				c->status = c->u.command[1]->status;
+
 				close(fd[1]); // close write end
 			}
 			else if (child > 0) // parent
 			{
-				// wait for child (command 1) to finish
-				int status;
-				waitpid(child, &status, 0);
-				c->u.command[0]->status = status;
-				
-				close(fd[1]); // close write end of pipe
-				if (dup2(fd[0], STDIN_FILENO) == -1)
+				// redirect standard input to read end of pipe
+				if (dup2(fd[1], 1) == -1)
 					error(3, 0, "Cannot read from pipe.");
-					
-				// execute second command
-				execute_command(c->u.command[1], time_travel);
-				c->status = c->u.command[1]->status;
-				
+
+				// execute first command
+				execute_command(c->u.command[0], time_travel);
+				c->status = c->u.command[0]->status;
+
 				close(fd[0]); // close read end
 			}
 			else
 				error(3, 0, "Cannot create child process.");
+
 			break;
 
 		default:
+				error(3, 0, "Command type not recognized.");
 			break;
 	}
 

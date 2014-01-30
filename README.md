@@ -26,6 +26,7 @@ Installation
 Limitations
 ---------------
 - Input file (minus comments) is limited to INT_MAX bytes
+- Multiline commands within subshells not handled properly.
 
 Exit Codes
 ---------------
