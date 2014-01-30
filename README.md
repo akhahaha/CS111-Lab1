@@ -14,19 +14,20 @@ parallel where possible.
 
 Features
 ---------------
-- Supports nested subshells.
+- Shell interpreter for a smalll subset of POSIX shell grammar.
+- The -p flag will output a diagnostic tree.
 	
 Installation
 ---------------
 1. Download and unpack tarball.
 2. Run *make* to compile.
-3. Execute using *./timetrash input.sh*. The *-p* option will print the 
-	input script in tree form to standard output.
+3. ./timetrash script.sh
 
 Limitations
 ---------------
 - Input file (minus comments) is limited to INT_MAX bytes
-- Multiline commands within subshells not handled properly.
+- This doesn't support all POSIX grammar. This includes: no string literals, 
+  no ! for logical negation, brace expansion, etc. Also no << or >>.
 
 Exit Codes
 ---------------
