@@ -34,6 +34,8 @@ void execute_command (command_t c, int time_travel)
 {
 	pid_t child;
 	int fd[2];
+	int r = 0;
+	int w = 1;
 
 	switch (c->type)
 	{
@@ -134,31 +136,37 @@ void execute_command (command_t c, int time_travel)
 			child = fork();
 			if (child == 0) // child
 			{
-				// redirect standard output to write end of pipe
-				if (dup2(fd[1], 1) == -1)
+				close(fd[r]); // close read end
+				
+				// redirect standard output to read end of pipe
+				if (dup2(fd[w], w) == -1)
 					error(3, 0, "Cannot write to pipe.");
-
-				close(fd[0]); // close read end
 
 				// execute first command
 				execute_command(c->u.command[0], time_travel);
 				c->status = c->u.command[0]->status;
+				
+				close(fd[w]); // close write end
+				
+				exit(0);
 			}
 			else if (child > 0) // parent
-			{				
+			{
 				// wait for the child process
 				int status;
 				waitpid(child, &status, 0);
-				
-				// redirect standard input to read end of pipe
-				if (dup2(fd[0], 0) == -1)
-					error(3, 0, "Cannot read from pipe.");
 
-				close(fd[1]); // close write end
+				close(fd[w]); // close write end
+				
+				// redirect standard input to write end of pipe
+				if (dup2(fd[r], r) == -1)
+					error(3, 0, "Cannot read from pipe.");
 
 				// execute second command
 				execute_command(c->u.command[1], time_travel);
 				c->status = c->u.command[1]->status;
+				
+				close(fd[r]); // close read end
 			}
 			else
 				error(3, 0, "Cannot create child process.");
