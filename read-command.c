@@ -75,7 +75,7 @@ int is_empty (stack *s)
 typedef struct filelist *filelist_t;
 struct filelist
 {
-	char** file;
+	char* file;
 	filelist_t next;
 };
 
@@ -640,12 +640,68 @@ command_t make_command_tree (token_t* head_tok)
 	return root;
 }
 
-// TODO: Returns the required filelist for a command tree.
+// Traverses a command tree and returns a list of all required files.
 filelist_t get_depends (command_t c)
 {
-	// TODO: Traverse the tree and grab all command arguments and redirect files.
-	
-	return NULL;
+	filelist_t list = NULL;
+	filelist_t curr;
+	int arg_count;
+
+	switch (c->type)
+	{
+		case SIMPLE_COMMAND:
+			arg_count = 1; // skip the first word (is the command name)
+
+			// load arguments into filelist
+			while (c->u.word[arg_count])
+			{
+				if (!list)
+				{
+					list = checked_malloc(sizeof(struct filelist));
+					curr = list;
+				}
+				else
+				{
+					curr->next = checked_malloc(sizeof(struct filelist));
+					curr = curr->next;
+				}
+
+				curr->file = c->u.word[arg_count];
+				curr->next = NULL;
+
+				arg_count++;
+			}
+			break;
+
+		case SUBSHELL_COMMAND:
+			list = get_depends(c->u.subshell_command);
+			break;
+
+		// two-branch commands are handled in the same way
+		case AND_COMMAND:
+		case OR_COMMAND:
+		case PIPE_COMMAND:
+		case SEQUENCE_COMMAND:
+			list = get_depends(c->u.command[0]);
+
+			if (list) // if not empty, traverse to end of list and append
+			{
+				curr = list;
+				while (curr->next != NULL)
+					curr = curr->next;
+
+				curr->next = get_depends(c->u.command[1]);
+			}
+			else
+				list = get_depends(c->u.command[1]);
+			break;
+
+		default:
+			error(3, 0, "Command type not recognized.");
+			break;
+	}
+
+	return list;
 }
 
 // Converts a token stream into a command forest
@@ -664,8 +720,15 @@ command_stream_t make_command_forest (token_stream_t* token_stream)
 
 		curr_tree = checked_malloc(sizeof(struct command_stream));
 		curr_tree->comm = cmd;
-		// TODO: get list of required files
-		// curr_tree->depends = get_depends(cmd);
+		curr_tree->depends = get_depends(cmd);
+
+		// DIAGNOSTIC: print arguments from list
+		// filelist_t list = curr_tree->depends;
+		// while (list != NULL)
+		// {
+			// printf("%s\n", list->file);
+			// list = list->next;
+		// }
 
 		if (!head_tree)
 		{
