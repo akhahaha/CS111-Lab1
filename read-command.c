@@ -640,41 +640,49 @@ command_t make_command_tree (token_t* head_tok)
 	return root;
 }
 
-// Traverses a command tree and returns a list of all required files.
+// Traverses a command tree and returns a list of all redirect files.
 filelist_t get_depends (command_t c)
 {
 	filelist_t list = NULL;
-	filelist_t curr;
+	filelist_t sslist = NULL;
+	filelist_t curr = NULL;
 	int arg_count;
 
 	switch (c->type)
 	{
+		case SUBSHELL_COMMAND:
+			// get filelist for subshell
+			sslist = get_depends(c->u.subshell_command);
+			// no break, handle subshell redirects with simple command case
+
 		case SIMPLE_COMMAND:
-			arg_count = 1; // skip the first word (is the command name)
-
-			// load arguments into filelist
-			while (c->u.word[arg_count])
+			// add redirect files to filelist
+			if (c->input)
 			{
-				if (!list)
-				{
-					list = checked_malloc(sizeof(struct filelist));
-					curr = list;
-				}
-				else
-				{
-					curr->next = checked_malloc(sizeof(struct filelist));
-					curr = curr->next;
-				}
+				curr = checked_malloc(sizeof(struct filelist));
+				curr->file = c->input;
+				curr->next = NULL;
+				list = curr;
+			}
 
-				curr->file = c->u.word[arg_count];
+			if (c->output)
+			{
+				curr = checked_malloc(sizeof(struct filelist));
+				curr->file = c->output;
 				curr->next = NULL;
 
-				arg_count++;
+				if (list)
+					list->next = curr;
+				else
+					list = curr;
 			}
-			break;
 
-		case SUBSHELL_COMMAND:
-			list = get_depends(c->u.subshell_command);
+			// if there is a subshell list
+			if (sslist)
+			{
+				curr->next = sslist;
+			}
+
 			break;
 
 		// two-branch commands are handled in the same way
@@ -682,9 +690,11 @@ filelist_t get_depends (command_t c)
 		case OR_COMMAND:
 		case PIPE_COMMAND:
 		case SEQUENCE_COMMAND:
+			// get filelist for first command
 			list = get_depends(c->u.command[0]);
 
-			if (list) // if not empty, traverse to end of list and append
+			// get filelist for second command
+			if (list) // if first not empty, traverse to end of list first
 			{
 				curr = list;
 				while (curr->next != NULL)
