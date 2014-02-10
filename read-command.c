@@ -19,7 +19,7 @@
 #include <ctype.h>		// required to perform isalnum()
 #include <error.h>
 #include <stdbool.h>	// required for boolean functions
-#include <stdio.h>		// required to print diagnostic text
+#include <stdio.h>		// required for EOF
 #include <stdlib.h>		// required to free memory
 #include <string.h>		// required for strchr()
 
@@ -71,13 +71,21 @@ int is_empty (stack *s)
 }
 // end stack definitions
 
+// linked list of files required by a command
+typedef struct filelist *filelist_t;
+struct filelist
+{
+	char** file;
+	filelist_t next;
+};
+
 // Linked list of command(tree)s
 struct command_stream
 {
 	command_t comm;
+	filelist_t depends;		// command file dependencies
 	command_stream_t next;
 };
-
 
 // Enumerated token types
 enum token_type
@@ -146,9 +154,7 @@ void free_tokens (token_stream_t* head_stream)
 
 		while (curr != NULL)
 		{
-			// content is passed to command trees
-			// if (curr->content != NULL)
-				// free(curr->content);
+			// token->content lives on in commands, do not dellocate
 
 			prev = curr;
 			curr = curr->next;
@@ -371,7 +377,6 @@ token_stream_t* make_token_stream (char* script, size_t script_size)
 }
 
 // Pops one op and two operands and reinserts the branch into operand stack
-// Returns true if successful
 bool make_branch (stack* ops, stack* operands)
 {
 	if (size(operands) < 2)
@@ -635,36 +640,45 @@ command_t make_command_tree (token_t* head_tok)
 	return root;
 }
 
+// TODO: Returns the required filelist for a command tree.
+filelist_t get_depends (command_t c)
+{
+	// TODO: Traverse the tree and grab all command arguments and redirect files.
+	
+	return NULL;
+}
+
 // Converts a token stream into a command forest
 command_stream_t make_command_forest (token_stream_t* token_stream)
 {
 	token_stream_t* curr_stream = token_stream;
 
 	command_stream_t head_tree = NULL;
-	command_stream_t curr_tree = head_tree;
+	command_stream_t curr_tree = NULL;
+	command_stream_t prev_tree = NULL;
 
-	int count = 1;
 	while (curr_stream != NULL && curr_stream->head->next != NULL)
 	{
-		token_t* curr = curr_stream->head->next; // skips dummy header
+		token_t* curr = curr_stream->head->next;	// skips dummy header
 		command_t cmd = make_command_tree (curr);	// root of command tree
 
-		// if this is the first complete command
-		if(!head_tree)
+		curr_tree = checked_malloc(sizeof(struct command_stream));
+		curr_tree->comm = cmd;
+		// TODO: get list of required files
+		// curr_tree->depends = get_depends(cmd);
+
+		if (!head_tree)
 		{
-			head_tree = checked_malloc(sizeof(struct command_stream));
-			head_tree->comm = cmd;
-			curr_tree = head_tree;
+			head_tree = curr_tree;
+			prev_tree = head_tree;
 		}
 		else
 		{
-			curr_tree->next = checked_malloc(sizeof(struct command_stream));
-			curr_tree = curr_tree->next;
-			curr_tree->comm = cmd;
+			prev_tree->next = curr_tree;
+			prev_tree = curr_tree;
 		}
 
 		curr_stream = curr_stream->next;
-		count++;
 	}
 
 	return head_tree;

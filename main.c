@@ -48,9 +48,16 @@ main (int argc, char **argv)
 	script_name = argv[optind];
 	FILE *script_stream = fopen (script_name, "r");
 	if (! script_stream)
-	error (1, errno, "%s: cannot open", script_name);
-	command_stream_t command_stream =
-	make_command_stream (get_next_byte, script_stream);
+		error (1, errno, "%s: cannot open", script_name);
+	command_stream_t command_stream = make_command_stream (get_next_byte, script_stream);
+	
+	/* TODO: check dependencies between each command stream
+		1. Separate into two lists (no depends / has depends)
+		2. Run commands in 'no depends' list in parallel, then recheck depends 
+			between remaining commands, and repeat until no commands left.
+		* First command tree will always be run in initial batch, should be no 
+			deadlock dependency cycles.
+	*/
 
 	command_t last_command = NULL;
 	command_t command;

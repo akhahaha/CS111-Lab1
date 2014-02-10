@@ -28,8 +28,7 @@ int command_status (command_t c)
 	return c->status;
 }
 
-// Executes command c. No idea what the time_travel arg is for.
-// main() calls this with root. successive recursive calls traverse the tree.
+// Executes command c. The time_travel flag activates extra parallelism.
 void execute_command (command_t c, int time_travel)
 {
 	pid_t child;
