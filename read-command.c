@@ -72,19 +72,10 @@ int is_empty (stack *s)
 // end stack definitions
 
 // linked list of files required by a command
-typedef struct filelist *filelist_t;
 struct filelist
 {
 	char* file;
 	filelist_t next;
-};
-
-// Linked list of command(tree)s
-struct command_stream
-{
-	command_t comm;
-	filelist_t depends;		// command file dependencies
-	command_stream_t next;
 };
 
 // Enumerated token types
@@ -712,6 +703,41 @@ filelist_t get_depends (command_t c)
 	}
 
 	return list;
+}
+
+// Returns 1 if a filelist shares dependencies with a command_stream
+int is_dependent (filelist_t flist, command_stream_t stream)
+{
+	if (flist == NULL)
+		return 0;
+	else
+	{
+		filelist_t flist_curr, slist_curr;
+		while (stream != NULL)
+		{
+			flist_curr = flist;
+			while (flist_curr != NULL)
+			{
+				slist_curr = stream->depends;
+				while (slist_curr != NULL)
+				{
+					if (strcmp(flist_curr->file, slist_curr->file) == 0)
+					{
+						printf("%s conflicts with %s\n", flist_curr->file, slist_curr->file);// DIAGONISTIC
+						return 1;
+					}
+
+					slist_curr = slist_curr->next;
+				}
+					
+				flist_curr = flist_curr->next;
+			}
+			
+			stream = stream->next;
+		}
+	}
+	
+	return 0;
 }
 
 // Converts a token stream into a command forest

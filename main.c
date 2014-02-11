@@ -10,20 +10,19 @@
 static char const *program_name;
 static char const *script_name;
 
-static void
-usage (void)
+static void usage (void)
 {
 	error (1, 0, "usage: %s [-pt] SCRIPT-FILE", program_name);
 }
 
-static int
-get_next_byte (void *stream)
+static int get_next_byte (void *stream)
 {
 	return getc (stream);
 }
 
-int
-main (int argc, char **argv)
+int execute_time_travel (command_stream_t stream);
+
+int main (int argc, char **argv)
 {
 	int opt;
 	int command_number = 1;
@@ -34,10 +33,10 @@ main (int argc, char **argv)
 	for (;;)
 	switch (getopt (argc, argv, "pt"))
 	{
-	case 'p': print_tree = 1; break;
-	case 't': time_travel = 1; break;
-	default: usage (); break;
-	case -1: goto options_exhausted;
+		case 'p': print_tree = 1; break;
+		case 't': time_travel = 1; break;
+		default: usage (); break;
+		case -1: goto options_exhausted;
 	}
 	options_exhausted:;
 
@@ -46,34 +45,33 @@ main (int argc, char **argv)
 	usage ();
 
 	script_name = argv[optind];
-	FILE *script_stream = fopen (script_name, "r");
+	FILE *script_stream = fopen(script_name, "r");
 	if (! script_stream)
 		error (1, errno, "%s: cannot open", script_name);
-	command_stream_t command_stream = make_command_stream (get_next_byte, script_stream);
+	command_stream_t command_stream = make_command_stream(get_next_byte, script_stream);
 	
-	/* TODO: check dependencies between each command stream
-		1. Separate into two lists (no depends / has depends)
-		2. Run commands in 'no depends' list in parallel, then recheck depends 
-			between remaining commands, and repeat until no commands left.
-		* First command tree will always be run in initial batch, should be no 
-			deadlock dependency cycles.
-	*/
-
-	command_t last_command = NULL;
-	command_t command;
-	while ((command = read_command_stream (command_stream)))
+	if (time_travel)
 	{
-		if (print_tree)
-		{
-			printf ("# %d\n", command_number++);
-			print_command (command);
-		}
-		else
-		{
-			last_command = command;
-			execute_command (command, time_travel);
-		}
+		return execute_time_travel(command_stream);
 	}
-
-	return print_tree || !last_command ? 0 : command_status (last_command);
+	else
+	{
+		command_t last_command = NULL;
+		command_t command;
+		while ((command = read_command_stream(command_stream)))
+		{
+			if (print_tree)
+			{
+				printf("# %d\n", command_number++);
+				print_command(command);
+			}
+			else
+			{
+				last_command = command;
+				execute_command(command, time_travel);
+			}
+		}
+		
+		return print_tree || !last_command ? 0 : command_status(last_command);
+	}
 }

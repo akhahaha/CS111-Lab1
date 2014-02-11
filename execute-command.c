@@ -28,7 +28,8 @@ int command_status (command_t c)
 	return c->status;
 }
 
-// Executes command c. The time_travel flag activates extra parallelism.
+// Executes command c. No idea what the time_travel arg is for.
+// main() calls this with root. successive recursive calls traverse the tree.
 void execute_command (command_t c, int time_travel)
 {
 	pid_t child;
@@ -178,4 +179,63 @@ void execute_command (command_t c, int time_travel)
 	}
 
 	return ;
+}
+
+// Executes command_stream with time travel parallelism.
+int execute_time_travel (command_stream_t command_stream)
+{	
+	while (command_stream != NULL)
+	{
+		command_stream_t list = NULL;
+		command_stream_t list_curr = NULL;
+		command_stream_t prev = NULL;
+		command_stream_t curr = command_stream;
+		
+		while (curr != NULL)
+		{
+			// add to list if empty, should be first command in stream
+			if (list == NULL)
+			{
+				list = curr;
+				list_curr = curr;
+				command_stream = curr->next;
+				curr = curr->next;
+			}
+			// add to list if no dependencies with list
+			else if (is_dependent(curr->depends, list) == 0)
+			{
+				// if start of command stream
+				if (prev == NULL)
+				{
+					list_curr->next = curr;
+					list_curr = curr;
+					command_stream = curr->next;
+					curr = curr->next;
+				}
+				else
+				{
+					list_curr->next = curr; 
+					list_curr = curr;
+					prev->next = curr->next;
+					curr = curr->next;
+				}
+			}
+			else
+			{
+				prev = curr;
+				curr = curr->next;
+			}
+			
+			list_curr->next = NULL;
+		}
+	
+		// TODO: execute ready list, currently not concurrent
+		command_t command;
+		while ((command = read_command_stream(list)))
+		{
+			execute_command(command, 1);
+		}
+	}
+	
+	return 0;
 }
