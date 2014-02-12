@@ -71,13 +71,6 @@ int is_empty (stack *s)
 }
 // end stack definitions
 
-// linked list of files required by a command
-struct filelist
-{
-	char* file;
-	filelist_t next;
-};
-
 // Enumerated token types
 enum token_type
 {
@@ -158,6 +151,47 @@ void free_tokens (token_stream_t* head_stream)
 	}
 
 	return;
+}
+
+// Deallocates all allocated memory associated with a command tree
+void free_command (command_t cmd)
+{
+	int i = 1;
+	switch(cmd->type)
+	{
+		case SUBSHELL_COMMAND:
+			free(cmd->input); free(cmd->output);
+			// free subshell command
+			free_command(cmd->u.subshell_command);
+			free(cmd->u.subshell_command);
+			break;
+
+		case SIMPLE_COMMAND:
+			free(cmd->input); free(cmd->output);
+			// free words
+			while(cmd->u.word[i])
+			{
+				free(cmd->u.word[i]);
+				i++;
+			}
+			break;
+
+		// two branch commands handled similarly
+		case AND_COMMAND:
+		case OR_COMMAND:
+		case PIPE_COMMAND:
+		case SEQUENCE_COMMAND:
+			// free branches
+			free_command(cmd->u.command[0]); free(cmd->u.command[0]);
+			free_command(cmd->u.command[1]); free(cmd->u.command[1]);
+			break;
+
+		default:
+			error(3, 0, "Command type not recognized.");
+			break;
+	};
+
+	return ;
 }
 
 // Converts an input script into a token stream
@@ -729,14 +763,14 @@ int is_dependent (filelist_t flist, command_stream_t stream)
 
 					slist_curr = slist_curr->next;
 				}
-					
+
 				flist_curr = flist_curr->next;
 			}
-			
+
 			stream = stream->next;
 		}
 	}
-	
+
 	return 0;
 }
 
@@ -757,14 +791,6 @@ command_stream_t make_command_forest (token_stream_t* token_stream)
 		curr_tree = checked_malloc(sizeof(struct command_stream));
 		curr_tree->comm = cmd;
 		curr_tree->depends = get_depends(cmd);
-
-		// DIAGNOSTIC: print arguments from list
-		// filelist_t list = curr_tree->depends;
-		// while (list != NULL)
-		// {
-			// printf("%s\n", list->file);
-			// list = list->next;
-		// }
 
 		if (!head_tree)
 		{

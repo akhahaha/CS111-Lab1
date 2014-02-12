@@ -1,6 +1,12 @@
 // UCLA CS 111 Lab 1 command interface
 
-typedef struct filelist *filelist_t; // linked list of files required by a command
+// linked list of files required by a command
+typedef struct filelist *filelist_t;
+struct filelist
+{
+	char* file;
+	filelist_t next;
+};
 typedef struct command *command_t;
 typedef struct command_stream *command_stream_t;
 struct command_stream
@@ -15,6 +21,9 @@ struct command_stream
    GETBYTE will return the next input byte, or a negative number
    (setting errno) on failure.  */
 command_stream_t make_command_stream (int (*getbyte) (void *), void *arg);
+
+/* Deallocates all allocated memory associated with a command tree  */
+void free_command (command_t cmd);
 
 /* Returns 1 if a filelist shares dependencies with a command_stream  */
 int is_dependent (filelist_t flist, command_stream_t stream);

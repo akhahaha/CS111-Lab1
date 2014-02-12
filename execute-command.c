@@ -12,6 +12,7 @@
 
 -----------------------------------------------------------------------------*/
 
+#include "alloc.h"
 #include "command.h"
 #include "command-internals.h"
 
@@ -21,6 +22,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <stdio.h>
 
 // Returns the status of command c.
 int command_status (command_t c)
@@ -137,7 +139,7 @@ void execute_command (command_t c, int time_travel)
 			if (child == 0) // child
 			{
 				close(fd[r]); // close read end
-				
+
 				// redirect standard output to read end of pipe
 				if (dup2(fd[w], w) == -1)
 					error(3, 0, "Cannot write to pipe.");
@@ -145,9 +147,9 @@ void execute_command (command_t c, int time_travel)
 				// execute first command
 				execute_command(c->u.command[0], time_travel);
 				c->status = c->u.command[0]->status;
-				
+
 				close(fd[w]); // close write end
-				
+
 				exit(0);
 			}
 			else if (child > 0) // parent
@@ -157,7 +159,7 @@ void execute_command (command_t c, int time_travel)
 				waitpid(child, &status, 0);
 
 				close(fd[w]); // close write end
-				
+
 				// redirect standard input to write end of pipe
 				if (dup2(fd[r], r) == -1)
 					error(3, 0, "Cannot read from pipe.");
@@ -165,7 +167,7 @@ void execute_command (command_t c, int time_travel)
 				// execute second command
 				execute_command(c->u.command[1], time_travel);
 				c->status = c->u.command[1]->status;
-				
+
 				close(fd[r]); // close read end
 			}
 			else
@@ -183,14 +185,15 @@ void execute_command (command_t c, int time_travel)
 
 // Executes command_stream with time travel parallelism.
 int execute_time_travel (command_stream_t command_stream)
-{	
+{
 	while (command_stream != NULL)
 	{
 		command_stream_t list = NULL;
 		command_stream_t list_curr = NULL;
 		command_stream_t prev = NULL;
 		command_stream_t curr = command_stream;
-		
+		int runnable = 0;
+
 		while (curr != NULL)
 		{
 			// add to list if empty, should be first command in stream
@@ -200,12 +203,13 @@ int execute_time_travel (command_stream_t command_stream)
 				list_curr = curr;
 				command_stream = curr->next;
 				curr = curr->next;
+
+				runnable = 1;
 			}
 			// add to list if no dependencies with list
 			else if (is_dependent(curr->depends, list) == 0)
 			{
-				// if start of command stream
-				if (prev == NULL)
+				if (prev == NULL) // if start of command stream
 				{
 					list_curr->next = curr;
 					list_curr = curr;
@@ -214,28 +218,99 @@ int execute_time_travel (command_stream_t command_stream)
 				}
 				else
 				{
-					list_curr->next = curr; 
+					list_curr->next = curr;
 					list_curr = curr;
 					prev->next = curr->next;
 					curr = curr->next;
 				}
+
+				runnable++;
 			}
 			else
 			{
 				prev = curr;
 				curr = curr->next;
 			}
-			
+
 			list_curr->next = NULL;
 		}
-	
-		// TODO: execute ready list, currently not concurrent
-		command_t command;
-		while ((command = read_command_stream(list)))
+
+		// execute ready list
+		pid_t* children = checked_malloc(runnable * sizeof(pid_t));
+		int i = 0;
+
+		// create child for each runnable command
+		if (list != NULL)
 		{
-			execute_command(command, 1);
+			command_t command;
+			curr = list;
+			while (curr)
+			{
+				pid_t child = fork();
+				if (child == 0)
+				{
+					execute_command(curr->comm, 1);
+					exit(0);
+				}
+				else if (child > 0)
+				{
+					children[i] = child;
+				}
+				else
+					error(3, 0, "Cannot create child process.");
+
+				i++;
+				curr = curr->next;
+			}
+
+			printf("created %d/%d processes\n", i, runnable); // DIAGNOSTIC
+
+			// wait for children to finish
+			int waiting;
+			do
+			{
+				waiting = 0;
+				int j;
+				for (j = 0; j < runnable; j++)
+				{
+					if (children[j] > 0)
+					{
+						int status;
+						if (waitpid(children[j], &status, 0) != 0)
+						{
+							children[j] = 0;
+						}
+						else
+							waiting = 1;
+					}
+					sleep (0);
+				}
+			} while (waiting == 1);
 		}
+
+		// free memory
+		curr = list;
+		prev = NULL;
+		while (curr)
+		{
+			free_command(curr->comm);
+			free(curr->comm);
+			free(curr->depends);
+			filelist_t fcurr = curr->depends;
+			filelist_t fprev = NULL;
+			while (fcurr)
+			{
+				free(fprev);
+				fprev = fcurr;
+				fcurr = fcurr->next;
+			}
+
+			free(prev);
+			prev = curr;
+			curr = curr->next;
+		}
+		free(children);
 	}
-	
+
 	return 0;
 }
