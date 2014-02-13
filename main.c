@@ -1,77 +1,50 @@
-// UCLA CS 111 Lab 1 main program
+// UCLA CS 111 Lab 1 command interface
 
-#include <errno.h>
-#include <error.h>
-#include <getopt.h>
-#include <stdio.h>
-
-#include "command.h"
-
-static char const *program_name;
-static char const *script_name;
-
-static void usage (void)
+/* linked list of files required by a command  */
+typedef struct filelist *filelist_t;
+struct filelist
 {
-	error (1, 0, "usage: %s [-pt] SCRIPT-FILE", program_name);
-}
-
-static int get_next_byte (void *stream)
+	char* file;
+	filelist_t next;
+};
+typedef struct command *command_t;
+typedef struct command_stream *command_stream_t;
+struct command_stream
 {
-	return getc (stream);
-}
+	command_t comm;
+	filelist_t depends;		// command file dependencies
+	command_stream_t next;
+};
 
+/* Create a command stream from LABEL, GETBYTE, and ARG.  A reader of
+   the command stream will invoke GETBYTE (ARG) to get the next byte.
+   GETBYTE will return the next input byte, or a negative number
+   (setting errno) on failure.  */
+command_stream_t make_command_stream (int (*getbyte) (void *), void *arg);
+
+/* Deallocates all allocated memory associated with a command tree  */
+void free_command (command_t cmd);
+
+/* Traverses a command tree and returns a list of all redirect files.  */
+filelist_t get_depends (command_t c);
+
+/* Returns 1 if a filelist shares dependencies with a command_stream  */
+int is_dependent (filelist_t f1, filelist_t f2);
+
+/* Read a command from STREAM; return it, or NULL on EOF.  If there is
+   an error, report the error and exit instead of returning.  */
+command_t read_command_stream (command_stream_t stream);
+
+/* Executes command_stream with time travel parallelism.  */
 int execute_time_travel (command_stream_t stream);
 
-int main (int argc, char **argv)
-{
-	int opt;
-	int command_number = 1;
-	int print_tree = 0;
-	int time_travel = 0;
-	program_name = argv[0];
+/* Print a command to stdout, for debugging.  */
+void print_command (command_t);
 
-	for (;;)
-	switch (getopt (argc, argv, "pt"))
-	{
-		case 'p': print_tree = 1; break;
-		case 't': time_travel = 1; break;
-		default: usage (); break;
-		case -1: goto options_exhausted;
-	}
-	options_exhausted:;
+/* Execute a command.  Use "time travel" if the integer flag is
+   nonzero.  */
+void execute_command (command_t, int);
 
-	// There must be exactly one file argument.
-	if (optind != argc - 1)
-	usage ();
-
-	script_name = argv[optind];
-	FILE *script_stream = fopen(script_name, "r");
-	if (! script_stream)
-		error (1, errno, "%s: cannot open", script_name);
-	command_stream_t command_stream = make_command_stream(get_next_byte, script_stream);
-
-	if (time_travel)
-	{
-		return execute_time_travel(command_stream);
-	}
-	else
-	{
-		command_t last_command = NULL;
-		command_t command;
-		while ((command = read_command_stream(command_stream)))
-		{
-			if (print_tree)
-			{
-				printf("# %d\n", command_number++);
-				print_command(command);
-			}
-			else
-			{
-				last_command = command;
-				execute_command(command, time_travel);
-			}
-		}
-
-		return print_tree || !last_command ? 0 : command_status(last_command);
-	}
-}
+/* Return the exit status of a command, which must have previously been executed.
+   Wait for the command, if it is not already finished.  */
+int command_status (command_t);

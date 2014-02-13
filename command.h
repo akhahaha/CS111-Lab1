@@ -1,6 +1,6 @@
 // UCLA CS 111 Lab 1 command interface
 
-// linked list of files required by a command
+/* linked list of files required by a command  */
 typedef struct filelist *filelist_t;
 struct filelist
 {
@@ -25,8 +25,11 @@ command_stream_t make_command_stream (int (*getbyte) (void *), void *arg);
 /* Deallocates all allocated memory associated with a command tree  */
 void free_command (command_t cmd);
 
+/* Traverses a command tree and returns a list of all redirect files.  */
+filelist_t get_depends (command_t c);
+
 /* Returns 1 if a filelist shares dependencies with a command_stream  */
-int is_dependent (filelist_t flist, command_stream_t stream);
+int is_dependent (filelist_t f1, filelist_t f2);
 
 /* Read a command from STREAM; return it, or NULL on EOF.  If there is
    an error, report the error and exit instead of returning.  */

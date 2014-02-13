@@ -702,10 +702,12 @@ filelist_t get_depends (command_t c)
 					list = curr;
 			}
 
-			// if there is a subshell list
+			// add subshell list
 			if (sslist)
 			{
-				curr->next = sslist;
+				curr = list;
+				list = sslist;
+				list->next = curr;
 			}
 
 			break;
@@ -740,34 +742,27 @@ filelist_t get_depends (command_t c)
 }
 
 // Returns 1 if a filelist shares dependencies with a command_stream
-int is_dependent (filelist_t flist, command_stream_t stream)
+int is_dependent (filelist_t f1, filelist_t f2)
 {
-	if (flist == NULL)
+	if (f1 == NULL || f2 == NULL)
 		return 0;
 	else
 	{
-		filelist_t flist_curr, slist_curr;
-		while (stream != NULL)
+		filelist_t f1_curr = f1;
+		filelist_t f2_curr = NULL;
+
+		while (f1_curr != NULL)
 		{
-			flist_curr = flist;
-			while (flist_curr != NULL)
+			f2_curr = f2;
+			while (f2_curr != NULL)
 			{
-				slist_curr = stream->depends;
-				while (slist_curr != NULL)
-				{
-					if (strcmp(flist_curr->file, slist_curr->file) == 0)
-					{
-						printf("%s conflicts with %s\n", flist_curr->file, slist_curr->file);// DIAGONISTIC
-						return 1;
-					}
+				if (strcmp(f1_curr->file, f2_curr->file) == 0)
+					return 1;
 
-					slist_curr = slist_curr->next;
-				}
-
-				flist_curr = flist_curr->next;
+				f2_curr = f2_curr->next;
 			}
 
-			stream = stream->next;
+			f1_curr = f1_curr->next;
 		}
 	}
 

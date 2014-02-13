@@ -124,8 +124,31 @@ void execute_command (command_t c, int time_travel)
 			break;
 
 		case SEQUENCE_COMMAND:
-			execute_command(c->u.command[0], time_travel);
-			execute_command(c->u.command[1], time_travel);
+			// parallelize sequence commands if time travel enabled
+			if (time_travel && !(is_dependent(get_depends(c->u.command[0]), get_depends(c->u.command[1]))))
+			{
+				child = fork();
+				if (child == 0) // child
+				{
+					execute_command(c->u.command[0], time_travel);
+					exit(0);
+				}
+				if (child > 0) // parent
+				{
+					execute_command(c->u.command[1], time_travel);
+				}
+				else
+					error(3, 0, "Cannot create child process.");
+
+				// wait for child
+				waitpid(child, NULL, 0);
+			}
+			else
+			{
+				execute_command(c->u.command[0], time_travel);
+				execute_command(c->u.command[1], time_travel);
+			}
+
 			c->status = c->u.command[1]->status;
 			break;
 
@@ -206,30 +229,46 @@ int execute_time_travel (command_stream_t command_stream)
 
 				runnable = 1;
 			}
-			// add to list if no dependencies with list
-			else if (is_dependent(curr->depends, list) == 0)
+			else
 			{
-				if (prev == NULL) // if start of command stream
+				// check dependency
+				int has_depends = 0;
+				command_stream_t stream = list;
+				while (stream != NULL)
 				{
-					list_curr->next = curr;
-					list_curr = curr;
-					command_stream = curr->next;
-					curr = curr->next;
+					if (is_dependent(curr->depends, stream->depends))
+					{
+						has_depends = 1;
+						break;
+					}
+					stream = stream->next;
+				}
+
+				// add to list if no dependencies with list
+				if (has_depends == 0)
+				{
+					if (prev == NULL) // if start of command stream
+					{
+						list_curr->next = curr;
+						list_curr = curr;
+						command_stream = curr->next;
+						curr = curr->next;
+					}
+					else
+					{
+						list_curr->next = curr;
+						list_curr = curr;
+						prev->next = curr->next;
+						curr = curr->next;
+					}
+
+					runnable++;
 				}
 				else
 				{
-					list_curr->next = curr;
-					list_curr = curr;
-					prev->next = curr->next;
+					prev = curr;
 					curr = curr->next;
 				}
-
-				runnable++;
-			}
-			else
-			{
-				prev = curr;
-				curr = curr->next;
 			}
 
 			list_curr->next = NULL;
@@ -263,8 +302,6 @@ int execute_time_travel (command_stream_t command_stream)
 				curr = curr->next;
 			}
 
-			printf("created %d/%d processes\n", i, runnable); // DIAGNOSTIC
-
 			// wait for children to finish
 			int waiting;
 			do
@@ -275,8 +312,7 @@ int execute_time_travel (command_stream_t command_stream)
 				{
 					if (children[j] > 0)
 					{
-						int status;
-						if (waitpid(children[j], &status, 0) != 0)
+						if (waitpid(children[j], NULL, 0) != 0)
 						{
 							children[j] = 0;
 						}
@@ -289,27 +325,30 @@ int execute_time_travel (command_stream_t command_stream)
 		}
 
 		// free memory
+		free(children);
+		// free command stream
 		curr = list;
 		prev = NULL;
 		while (curr)
 		{
+			// free command tree
 			free_command(curr->comm);
 			free(curr->comm);
-			free(curr->depends);
+
+			// free filelist
 			filelist_t fcurr = curr->depends;
 			filelist_t fprev = NULL;
 			while (fcurr)
 			{
-				free(fprev);
 				fprev = fcurr;
 				fcurr = fcurr->next;
+				free(prev);
 			}
+			free(curr->depends);
 
-			free(prev);
 			prev = curr;
 			curr = curr->next;
 		}
-		free(children);
 	}
 
 	return 0;
