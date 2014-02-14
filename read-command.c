@@ -18,6 +18,7 @@
 
 #include <ctype.h>		// required to perform isalnum()
 #include <error.h>
+#include <limits.h>		// required for INT_MAX check
 #include <stdbool.h>	// required for boolean functions
 #include <stdio.h>		// required for EOF
 #include <stdlib.h>		// required to free memory
@@ -810,7 +811,6 @@ command_stream_t make_command_stream (int (*getbyte) (void *), void *arg)
 	size_t count = 0;
 	size_t buffer_size = 1024;
 	char* buffer = checked_malloc(buffer_size);
-
 	char next;
 
 	// create buffer of input with comments stripped out
@@ -833,7 +833,11 @@ command_stream_t make_command_stream (int (*getbyte) (void *), void *arg)
 			count++;
 
 			// expand buffer if necessary
-			if (count == buffer_size)
+			if (count == INT_MAX)
+			{
+				error(1, 0, "Line -1: Input size over INT_MAX.");
+			}
+			else if (count == buffer_size)
 			{
 				buffer_size = buffer_size * 2;
 				buffer = checked_grow_alloc (buffer, &buffer_size);
@@ -862,7 +866,7 @@ command_stream_t make_command_stream (int (*getbyte) (void *), void *arg)
 // Print the first command tree of the forest and moves up the next tree
 command_t read_command_stream (command_stream_t s)
 {
-	if (s->comm == NULL)
+	if (s == NULL || s->comm == NULL)
 		return NULL;
 
 	// grab the current command

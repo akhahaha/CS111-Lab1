@@ -22,7 +22,6 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <stdio.h>
 
 // Returns the status of command c.
 int command_status (command_t c)

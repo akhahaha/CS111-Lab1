@@ -16,6 +16,8 @@ Features
 ---------------
 - Shell interpreter for a smalll subset of POSIX shell grammar.
 - The -p flag will output a diagnostic tree.
+- The -t flag will execute time travel concurrent execution where possible, 
+	including within subshells.
 	
 Installation
 ---------------
@@ -27,7 +29,7 @@ Limitations
 ---------------
 - Input file (minus comments) is limited to INT_MAX bytes
 - This doesn't support all POSIX grammar. This includes: no string literals, 
-  no ! for logical negation, brace expansion, etc. Also no << or >>.
+	no ! for logical negation, brace expansion, etc. Also no << or >>.
 
 Exit Codes
 ---------------
