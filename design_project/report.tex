@@ -5,8 +5,34 @@
 \fancyhead[LE,LO]{Braden Anderson (203744563) \& Alan Kha (904030522)}
 
 \usepackage{authblk}
+\usepackage{listings}
+\usepackage{color}
+
+\definecolor{green}{rgb}{0,0.5,0}
+\definecolor{purple}{rgb}{0.58,0,0.82}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+
+\lstdefinestyle{customc}{
+  belowcaptionskip=1\baselineskip,
+  breaklines=true,
+  frame=L,
+  xleftmargin=\parindent,
+  language=C,
+  showstringspaces=false,
+  basicstyle=\footnotesize\ttfamily,
+  keywordstyle=\bfseries\color{blue!40!black},
+  commentstyle=\color{green},
+  identifierstyle=\color{black},
+  stringstyle=\color{purple},
+  numbers=left,
+  numbersep=7pt,
+  rulecolor=\color{black},
+}
+
+\lstset{escapechar=@,style=customc}
 
 \begin{document}
+\lstset{language=C}
 
 \title{Lab 1ab Design Project:\\ Attack and Defend Your Shell}
 \author[1]{Braden Anderson}
@@ -17,23 +43,30 @@
 \maketitle
 
 \begin{abstract}
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+Our Lab 1ab implementation is potentially exploitable. This document will show in what ways our implementation is exploitable, and the possible forms that some exploits might take. Lastly, we will discuss security improvements that will protect against malicious attackers.
 \end{abstract}
 
 \section{Introduction}
-Certain C library functions, such as printf(), gets(), and memcpy() have well 
-known vulnerabilities.
+Lab 1 implements a shell interpreter for a small subset of POSIX grammar. An input script with valid syntax is read and executed similar to the command \texttt{sh script.sh}.
 
-\section{Specification of behavior}
+\section{Security objectives}
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. 
+\begin{lstlisting}[frame=single]
+printf("%s%s%s"); // bad!!
+\end{lstlisting}
+Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+\section{Overall design}
 Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
-\section{Plan for implementation}
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+\section{Threat model}
 
-\section{Summary of results}
+\section{Penetration testing}
 
-\section{Who did what}
+\section{Robustness analysis}
 
-\section{How to reproduce}
+\section{Challenges}
+
+\section{Conclusion}
 
 \end{document}
