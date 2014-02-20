@@ -174,7 +174,20 @@ do
 
 All of our code after the tokenization phase deals with nullbyte-terminated strings, so space after the nullbyte is ignored in all strings. Furthermore, there is no vulnerability with the \texttt{-p} option because printf() deals with nullbyte-terminated strings.
 
+We performed another penetration test by looking for format string vulnerabilities. Here are all usages of printf() in our implementation:
 
+\begin{lstlisting}[frame=single]
+printf("# %d\n", command_number++);
+printf (" \\\n%*s%s\n", indent, "", command_label[c->type]);
+printf ("%*s%s", indent, "", *w);
+printf (" %s", *w);
+printf ("%*s(\n", indent, "");
+printf ("\n%*s)", indent, "");
+printf ("<%s", c->input);
+printf (">%s", c->output);
+\end{lstlisting}
+
+All of the usages of print() listed here make use of hard-coded format strings, therefore avoiding the format string vulnerability.
 
 \section{Robustness analysis}
 \begin{itemize}
