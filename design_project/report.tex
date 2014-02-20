@@ -4,6 +4,8 @@
 \pagestyle{fancy}
 \fancyhead[LE,LO]{Braden Anderson (203744563) \& Alan Kha (904030522)}
 
+\usepackage[all]{xy} % for arrow diagrams.
+
 \usepackage{authblk}
 \usepackage{listings}
 \usepackage{color}
@@ -20,7 +22,7 @@
   language=C,
   showstringspaces=false,
   basicstyle=\footnotesize\ttfamily,
-  keywordstyle=\bfseries\color{blue!40!black},
+  keywordstyle=\bfseries\color{blue},
   commentstyle=\color{green},
   identifierstyle=\color{black},
   stringstyle=\color{purple},
@@ -50,23 +52,87 @@ Our Lab 1ab implementation is potentially exploitable. This document will show i
 Lab 1 implements a shell interpreter for a small subset of POSIX grammar. An input script with valid syntax is read and executed similar to the command \texttt{sh script.sh}.
 
 \section{Security objectives}
+The objective of this report is to investigate possible security flaws that a malicious user could use to attack the system running our shell. Vulnerabilities that could be used to harm the host system will be addressed.
+
+
 Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. 
-\begin{lstlisting}[frame=single]
-printf("%s%s%s"); // bad!!
-\end{lstlisting}
+
 Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
 \section{Overall design}
 Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
+Our shell interpreter implemenation takes a pipeline approach:
+
+\begin{displaymath}
+\xymatrix{
+Shell \: script \ar[r] & \framebox{Tokenization} \ar[r] & \framebox{Parsing} \ar[r] & Execution
+}
+\end{displaymath}
+
 \section{Threat model}
+This is where we model potential threats. This means that we use our security objectives to transform our overall application design into a system of components, data flows, and trust boundaries. Assumptions that we make:
+
+\begin{enumerate}
+  \item The shell interpreter is trusted, since we wrote all the code.
+  \item The user can be stupid or malicious.
+  \item The operating system is trusted.
+  \item Commands that have an interface outside our system -- for example, wget -- are potential sources of vulnerabilities.
+\end{enumerate}
+
+
 
 \section{Penetration testing}
+Certain C library functions, such as printf(), gets(), and memcpy() have well-known vulnerabilities\cite{formatstring,smashingthestack}. This is because the C language does not provide builtin, high-level support for buffers or cstrings. 
+
+Here is a program that is vulnerable to buffer overflows:
+\begin{lstlisting}[frame=single]
+int main(void) {
+    char buf[10];
+    int success = 0;
+    
+    printf("Enter string: \n");
+    gets(buf);
+
+    if (success)
+        return 0;
+
+    return 1;
+}
+\end{lstlisting}
+
 
 \section{Robustness analysis}
+\begin{itemize}
+  \item Input validation
+  \item No fixed-size buffers
+  \item No calls to printf() with uncontrolled format string
+  \item No unsafe library functions
+\end{itemize}
 
 \section{Challenges}
 
 \section{Conclusion}
+
+% This is where code samples will go.
+\appendix
+\section{A shellcode exploit}
+
+\begin{thebibliography}{9}
+
+\bibitem{formatstring}
+  scut/team teso,
+  Exploiting Format String Vulnerabilities.
+  Stanford University,
+  Version 1.2,
+  2001.
+
+\bibitem{smashingthestack}
+  Aleph One,
+  Smashing the Stack for Fun and Profit.
+  Phrack,
+  Volume 7,
+  1996.
+\end{thebibliography}
 
 \end{document}
