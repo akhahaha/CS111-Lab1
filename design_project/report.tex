@@ -83,7 +83,17 @@ Shell \: script \ar[r] & \framebox{Tokenization} \ar[r] & \framebox{Parsing} \ar
 }
 \end{displaymath}
 
-A more detailed flowchart:
+One exception to the strict pipelining approach is that our parser calls back to the tokenizer when it encounters subshells. For example, tokenizing the following expression:
+
+\begin{displaymath}
+\xymatrix{
+\framebox{echo a \&\& ( echo b )} \ar[r] & \framebox{echo} \: \framebox{a} \: \framebox{\&\&} \: \framebox{echo  b}
+}
+\end{displaymath}
+
+In the previous example, \texttt{echo b} remains untokenized after the initial tokenization pass. It's stored internally as a "subshell" token, and during the parsing phase it's tokenized dynamically. The parser returns a forest of command trees to main(), and these command trees are executed serially by our execution model. Execution is managed through a recursive traversal of each tree.
+
+So the expanded design for our shell interpreter (without the \texttt{-p} option) looks like:
 
 \begin{tikzpicture}[node distance = 2cm, auto]
     % Place nodes
@@ -91,10 +101,14 @@ A more detailed flowchart:
     \node [cloud, left of=tokenizer] (script) {shell script};
     \node [block, below of=tokenizer] (parser) {parser};
     \node [block, below of=parser] (execution) {execution};
+    \node [cloud, right of=execution] (output) {output};
     % Draw edges
     \path [line] (script) -- (tokenizer);
     \path [line] (tokenizer) -- (parser);
     \path [line] (parser) -- (execution);
+    \path [line] (execution) -- (output);
+    \draw (parser) edge[out=0,in=0,->] (tokenizer);
+    \draw[->] (execution) to [out = 0, in = 270, looseness = 4] (execution);
 \end{tikzpicture}
 
 \section{Threat model}
