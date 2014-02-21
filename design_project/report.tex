@@ -51,9 +51,9 @@
 
 \title{Lab 1ab Design Project:\\ Attack and Defend Your Shell}
 \author[1]{Braden Anderson}
-\affil[1]{bradencanderson@gmail.com}
+\affil[1]{bradencanderson@gmail.com, 203744563}
 \author[2]{Alan Kha}
-\affil[2]{akhahaha@gmail.com}
+\affil[2]{akhahaha@gmail.com, 904030522}
 
 \maketitle
 
@@ -63,6 +63,8 @@ Our Lab 1ab implementation is potentially exploitable. This document will show i
 
 \section{Introduction}
 Lab 1 implements a shell interpreter for a small subset of POSIX grammar. An input script with valid syntax is read and executed similar to the command \texttt{sh script.sh}. There are some key differences between modern shells and our own -- most notably, we do not support flow control structures such as loops, if statements, and case switches. As we will discuss in later sections, an absence of loops simplifies design concerns (and, by extension, security concerns) considerably.
+
+Work was shared between team members in this project. For the most part the plan of action was clear, so we alternated days working on the code, occasionally meeting to discuss system design.
 
 \section{Security Objectives}
 The objective of this report is to investigate possible security flaws that a malicious user could use to attack the system running our shell. Vulnerabilities that could be used to harm the host system, in particular using a hostile input script, will be addressed. We will investigate and fix known bugs within our own program, ensuring robust behavior.
@@ -111,7 +113,7 @@ This is where we model potential threats. This means that we use our security ob
 \begin{enumerate}
 	\item The shell interpreter is trusted, since we wrote all the code. However, it might enter an unsafe state.
 	\item The user can be stupid or malicious.
-	\item The operating system is trusted.
+	\item The operating system is trusted. This means we won't ever be mistakenly given bad memory.
 	\item The input can be intentionally or unintentionally malicious.
 	\item Commands that have an interface outside our system -- for example, wget -- are potential sources of vulnerabilities.
 \end{enumerate}
@@ -203,23 +205,22 @@ Processes in UNIX operating systems inherit the permissions of their parent proc
 
 Normally, executing a script with the line \texttt{ls > /home/output} would return a failure as creating writing to the home directory requires superuser permission. However, when executing \texttt{sudo ./timetrash script}, the redirect commands successfully execute with root access.
 
+\subsection{Memory efficiency}
+The tokenization phase copies the entire shell script into program memory. This means that if a 1GB file is read, we are storing cstrings taking up 1GB of memory. This will result in slow performance and system instability (if the operating system can't allocate more memory), but it is not potentially exploitable. However, the length of the input file is limited to \texttt{INT\_MAX}, which is system-dependent.
+
 \section{Robustness Analysis}
+
 \begin{itemize}
-	\item Input validation
-	\item No fixed-size buffers
-	\item No calls to printf() with uncontrolled format string
-	\item No unsafe library functions
+	\item All user input is validated. Illegal characters or incorrect syntax return a parsing error. 
+	\item No fixed-size buffers are used in our implementation. Buffers are dynamically resized as more space is needed. The only problem with this implementation is that it can potentially 
+	\item There are no calls to printf() with an uncontrolled format string.
+	\item Unsafe C library functions such as strcpy() are not used.
 \end{itemize}
 
 \section{Conclusion}
 We have determined that it is unlikely for an attacker to be able to exploit our processing of the input script to create unwanted behavior, at least using buffer overflow or printf vulnerabilities.
 
 The most likely avenue of attack would likely be through inherently bad commands, but preventing these is out of the scope of our program as they are problems inherent in any shell. Administrators who choose to use our interpreter for their system must take care to ensure only trusted users can execute scripts, and take special care when executing with superuser privileges.
-
-% This is where code samples will go.
-\appendix
-\section{A shellcode exploit}
-[fill in]
 
 \begin{thebibliography}{9}
 
