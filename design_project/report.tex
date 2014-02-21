@@ -118,7 +118,9 @@ This is where we model potential threats. This means that we use our security ob
 
 
 \section{Penetration testing}
-Certain C library functions, such as printf(), gets(), and memcpy() have well-known vulnerabilities\cite{formatstring,smashingthestack}. This is because the C language does not provide builtin, high-level support for buffers or cstrings. 
+We performed several pentests centered around common vulnerabilities in C and shell scripts. Certain C library functions, such as printf(), gets(), and memcpy() have well-known vulnerabilities\cite{formatstring,smashingthestack}. This is because the C language does not provide builtin, high-level support for buffers or cstrings. Shell interpreters are also common sources of system instability because they can modify portions of the file system.
+
+\subsection{Buffer overflows}
 
 Here is a program that is vulnerable to buffer overflows:
 \begin{lstlisting}[frame=single]
@@ -174,6 +176,8 @@ do
 
 All of our code after the tokenization phase deals with nullbyte-terminated strings, so space after the nullbyte is ignored in all strings. Furthermore, there is no vulnerability with the \texttt{-p} option because printf() deals with nullbyte-terminated strings.
 
+\subsection{Format string vulnerabilities}
+
 We performed another penetration test by looking for format string vulnerabilities. Here are all usages of printf() in our implementation:
 
 \begin{lstlisting}[frame=single]
@@ -187,7 +191,13 @@ printf ("<%s", c->input);
 printf (">%s", c->output);
 \end{lstlisting}
 
-All of the usages of print() listed here make use of hard-coded format strings, therefore avoiding the format string vulnerability.
+All of the usages of printf() listed here make use of hard-coded format strings, therefore making us unsuccessful in finding a format string vulnerability.
+
+\subsection{Inherently bad commands}
+[fill in]
+
+\subsection{Elevated permissions}
+[fill in]
 
 \section{Robustness analysis}
 \begin{itemize}
